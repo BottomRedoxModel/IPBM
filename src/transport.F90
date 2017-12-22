@@ -89,7 +89,7 @@ contains
 
     !initializing fabm from fabm.yaml file
     _LINE_
-    call fabm_create_model_from_yaml_file(fabm_model)
+    call fabm_create_model_from_yaml_file(fabm_model,_FABM_YAML_NAME_)
     _LINE_
     !
     !initializing ipbm standard_variables

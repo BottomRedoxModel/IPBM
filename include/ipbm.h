@@ -1,3 +1,4 @@
+#define _FABM_YAML_NAME_			'fabm_kara.yaml'
 #define _FILE_NAME_                 'KaraSea.nc'
 #define _INITIALIZATION_SINCE_YEAR_  1970
 #define _DEPTH_ON_BOUNDARY_         'depth_w'

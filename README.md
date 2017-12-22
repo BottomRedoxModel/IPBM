@@ -17,18 +17,20 @@ Then:
   download IPBM
 
   `$ git clone https://github.com/BottomRedoxModel/IPBM.git`
-   
-  download [FABM] and switch to dev-sham branch
-
-  `$ git clone https://github.com/limash/FABM.git --branch dev-sham`
   
-  download biogeochemistry model
+  download test cases for IPBM
+  
+  `$ git clone https://github.com/BottomRedoxModel/IPBM_data.git`
+   
+  download [FABM] and switch to ipbm branch
+
+  `$ git clone https://github.com/BottomRedoxModel/fabm.git --branch ipbm`
+  
+  download biogeochemistry model BROM
   
   `$ git clone https://github.com/BottomRedoxModel/brom_niva_module`
 
-  and download ecosystem model
-
-  `$ git clone https://github.com/limash/ERSEM.git`
+  and download ecosystem model ERSEM using https://gitlab.ecosystem-modelling.pml.ac.uk/stable/ERSEM/tree/master
 
 2. Add FABMDIR and NetCDF_ROOT environment variables
 
@@ -60,20 +62,20 @@ Then:
   Right-click in Windows Explorer within the directory where you want to place the IPBM directory, and choose "Git Bash Here", or use PowerShell program. In the terminal that appears to download IPBM type:
 
   `$ git clone https://github.com/BottomRedoxModel/IPBM.git`
+  
+  to download test cases for IPBM
+  
+  `$ git clone https://github.com/BottomRedoxModel/IPBM_data.git`
    
-  then download [FABM] and switch to dev-sham branch
+  then download [FABM] and switch to ipbm branch
 
-  `$ git clone https://github.com/limash/FABM.git --branch dev-sham`
+  `$ git clone https://github.com/BottomRedoxModel/fabm.git --branch ipbm`
   
   download biogeochemistry model
   
   `$ git clone https://github.com/BottomRedoxModel/brom_niva_module`
 
-  and download ecosystem model
-
-  `$ git clone https://github.com/limash/ERSEM.git`
-
-  if using other software, use these URLs.
+  and download ERSEM using https://gitlab.ecosystem-modelling.pml.ac.uk/stable/ERSEM/tree/master
   
 2. Add IPBMDIR environment variable (only if you are going to use pre-compiled NetCDF libraries)
 

@@ -52,6 +52,7 @@ add_executable(IPBM WIN32
                list_mod.F90
                item_mod.F90
                ice_mod.F90
+               yaml_mod.F90
                ../include/ipbm.h
                ../include/parameters.h)
 
