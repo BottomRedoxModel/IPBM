@@ -22,6 +22,7 @@ module transport
   use fabm_types
   use variables_mod,only: ipbm_standard_variables,&
                           ipbm_state_variable
+  use yaml_mod
 
   implicit none
   private
@@ -62,12 +63,12 @@ module transport
   type(type_horizontal_variable_id),save:: lon_id,lat_id,ws_id
   type(type_horizontal_variable_id),save:: taub_id,bdepth_id
   !type(type_horizontal_variable_id),save:: ssf_id !- ersem light
-  
+
   interface do_relaxation
     module procedure do_relaxation_single
     module procedure do_relaxation_array
   end interface
-  
+
 contains
   !
   !initialize ipbm
@@ -86,6 +87,8 @@ contains
     !NaN
     D_QNAN = 0._rk
     D_QNAN = D_QNAN / D_QNAN
+
+    call read_ipbm_configuration()
 
     !initializing fabm from fabm.yaml file
     _LINE_
@@ -715,7 +718,7 @@ contains
   pure function is_leap(year)
     integer,intent(in):: year
     integer is_leap
-    
+
     if (mod(year,400).eq.0) then
       is_leap = 1
       return
@@ -879,7 +882,7 @@ contains
     do i = 1,number_of_circles
       !
       call relaxation(ice_water_index,bbl_sed_index,day)
-      
+
       !diffusion
       !dcc = 0._rk
       call ipbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
@@ -888,7 +891,7 @@ contains
                              layer_thicknesses,brine_release,dcc)
       !call check_array("after_diffusion",surface_index,id,i)
       call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
-      
+
       !biogeochemistry
       increment = 0._rk
       do j = 1,number_of_parameters
@@ -911,7 +914,7 @@ contains
             = state_vars(j)%value(:bbl_sed_index-1)&
             * pF1_solids(2:bbl_sed_index)
           !
-          !ice domain          
+          !ice domain
           !all solids in the ice domain have similar
           !both brine and total volume concentrations
         end if
@@ -965,7 +968,7 @@ contains
           state_vars(j)%value(ice_water_index:surface_index-1)&
             = state_vars(j)%value(ice_water_index:surface_index-1)&
             + increment(ice_water_index:surface_index-1,j)
-          
+
         end if
       end do
       !do j = 1,number_of_parameters
@@ -975,7 +978,7 @@ contains
       !end do
       !call check_array("after_fabm_do",surface_index,id,i)
       call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
-      
+
       !sedimentation
       call ipbm_do_sedimentation(surface_index,bbl_sed_index,&
                                  ice_water_index,k_sed1,w_b,u_b,&
@@ -1522,7 +1525,7 @@ contains
 
     integer number_of_vars
     integer i
-    
+
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
       if (state_vars(i)%name.eq._DIC_) then
@@ -1558,9 +1561,9 @@ contains
     real(rk),intent(in):: value
     integer ,intent(in):: index
     integer, intent(in):: i
-    
+
     real(rk) dcc
-      
+
     dcc = _HMIX_RATE_ &
       * (value-state_vars(i)%value(index))
     state_vars(i)%value(index) = state_vars(i)%value(index) &
@@ -1575,10 +1578,10 @@ contains
     integer ,intent(in):: till
     integer, intent(in):: i
     real(rk),dimension(from:till),intent(in):: value
-    
+
     integer j
     real(rk) dcc
-      
+
     do j = from,till
       dcc = _HMIX_RATE_ &
         * (value(j)-state_vars(i)%value(j))

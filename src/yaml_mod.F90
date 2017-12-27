@@ -11,6 +11,8 @@
 !-----------------------------------------------------------------------
 
 module yaml_mod
+  use fabm_driver
+  use fabm_types,only: rk
   use list_mod
   use yaml_types
   use yaml,yaml_parse=>parse,yaml_error_length=>error_length
@@ -20,68 +22,20 @@ module yaml_mod
 
   type:: yaml_ipbm_type
     character(len=64):: name
-    class(*):: value
+    real(rk)         :: real_value
+    character(len=64):: char_value
   end type
-  
+
   type,extends(list):: type_yaml_input
-  contains
-    private
-    procedure:: add_input
   end type
 
-  interface get_ipbm_parameter
-    module procedure get_ipbm_parameter_text
-    module procedure get_ipbm_parameter_value
-  end interface
+  public read_ipbm_configuration
+  public get_ipbm_real_parameter
+  public get_ipbm_string_parameter
 
-  public read_ipbm_configuration, get_ipbm_parameter
-
-  class(type_yaml_input):: ipbm_parameter
+  type(type_yaml_input):: ipbm_parameters
 
 contains
-  !
-  !
-  !
-  subroutine add_input(self, var)
-    class(type_yaml_input):: self
-    class(variable)     :: var
-    class(*),allocatable:: temp
-
-    allocate(temp,source=var)
-    call self%add_item(temp)
-  end subroutine
-  !
-  !
-  !
-  function get_ipbm_parameter_text(name) result(text)
-    character(len=*),  intent(in):: name
-    character(len=64),intent(out):: text
-  
-    class(*),pointer:: curr
-    
-    call ipbm_parameter%reset()
-    do
-      curr => ipbm_parameter%get_item()
-      select type(curr)
-      type is(yaml_ipbm_type)
-        if (trim(curr%name) == trim(name)) then
-          result = curr
-          return
-        end if
-      end select
-      call self%next()
-      if (.not.self%moreitems()) exit
-    end do
-    
-  end function get_ipbm_parameter_text
-  !
-  !
-  !
-  function get_ipbm_parameter_value(name) result(value)
-    character(len=*), intent(in):: name
-    real(rk)        ,intent(out):: value
-  
-  end function get_ipbm_parameter_value
   !
   !
   !
@@ -104,8 +58,9 @@ contains
       class is (type_dictionary)
         call parse(node)
       class is (type_node)
-        call fatal_error('read_ipbm_configuration', trim(path_eff)//' must contain a dictionary &
-      &at the root (non-indented) level, not a single value. Are you missing a trailing colon?')
+        call fatal_error('read_ipbm_configuration', trim(path_eff)//' &
+          must contain a dictionary at the root (non-indented) level, &
+          not a single value. Are you missing a trailing colon?')
     end select
   contains
     !
@@ -113,11 +68,11 @@ contains
     !
     subroutine parse(mapping)
       class (type_dictionary), intent(in) :: mapping
-      
+
       class (type_node), pointer          :: node
       type  (type_key_value_pair), pointer:: pair
       type  (yaml_ipbm_type)              :: ipbm_type
-        
+
       logical             :: success
       real(rk)            :: realvalue
       character(len=64)   :: initname
@@ -141,21 +96,64 @@ contains
           ipbm_type%name = initname
           realvalue = value%to_real(default=real(0,real_kind),success=success)
           if (.not.success) then !Assume the value is a string
-            !realvalue = huge(1.0_rk)
-            ipbm_type%value = value%string
-            call ipbm_parameter%add_input(ipbm_type)
+            ipbm_type%char_value = value%string
           else
-            !outname = repeat('z',64)
-            ipbm_type%value = realvalue
-            call ipbm_parameter%add_input(realvalue)
+            ipbm_type%real_value = realvalue
           end if
+          call ipbm_parameters%add_item(ipbm_type)
         class is (type_null)
           call fatal_error('parse_initialization',trim(value%path)//' must be set to a real number, not to null.')
         class is (type_dictionary)
           call fatal_error('parse_initialization',trim(value%path)//' must be set to a real number, not to a dictionary.')
         end select
+        pair => pair%next
       end do
     end subroutine parse
   end subroutine read_ipbm_configuration
-  
+
+  real(rk) function get_ipbm_real_parameter(name)
+    character(len=*):: name
+    class(*),pointer:: curr
+
+    call ipbm_parameters%reset()
+    do
+      curr=>ipbm_parameters%get_item()
+      select type(curr)
+      class is(yaml_ipbm_type)
+        if (trim(curr%name)==trim(name)) then
+          get_ipbm_real_parameter = curr%real_value
+          return
+        end if
+      end select
+      call ipbm_parameters%next()
+      if (.not.ipbm_parameters%moreitems()) then
+        call fatal_error("Getting variables",&
+                         "can't find "//name//&
+                         " variable")
+      end if
+    end do
+  end function get_ipbm_real_parameter
+
+  character(len=64) function get_ipbm_string_parameter(name)
+    character(len=*):: name
+    class(*),pointer:: curr
+
+    call ipbm_parameters%reset()
+    do
+      curr=>ipbm_parameters%get_item()
+      select type(curr)
+      class is(yaml_ipbm_type)
+        if (trim(curr%name)==trim(name)) then
+          get_ipbm_string_parameter = curr%char_value
+          return
+        end if
+      end select
+      call ipbm_parameters%next()
+      if (.not.ipbm_parameters%moreitems()) then
+        call fatal_error("Getting variables",&
+                         "can't find "//name//&
+                         " variable")
+      end if
+    end do
+  end function get_ipbm_string_parameter
 end module
