@@ -29,6 +29,11 @@ module yaml_mod
   type,extends(list):: type_yaml_input
   end type
 
+  !interface get_ipbm_parameter
+  !  module procedure get_ipbm_real_parameter
+  !  module procedure get_ipbm_string_parameter
+  !end interface
+
   public read_ipbm_configuration
   public get_ipbm_real_parameter
   public get_ipbm_string_parameter

@@ -253,42 +253,42 @@ contains
   contains
     subroutine configurate_state_variables()
       !ammonium NH4+
-      call find_set_state_variable(_NH4_,is_gas = .true.)
+      !call find_set_state_variable(_NH4_,is_gas = .true.)
       !oxygen O2
-      call find_set_state_variable(_O2_,is_gas = .true.)
-      call find_set_state_variable(_H2S_,is_gas = .true.)
-      call find_set_state_variable(_CH4_,is_gas = .true.)
+      !call find_set_state_variable(_O2_,is_gas = .true.)
+      !call find_set_state_variable(_H2S_,is_gas = .true.)
+      !call find_set_state_variable(_CH4_,is_gas = .true.)
 
       !calcite - CaCO3
       call find_set_state_variable(_CaCO3_,&
         is_solid = .true.,density = 2.80E7_rk)
       !S0
-      call find_set_state_variable(_S0_,&
-        is_solid = .true.,density = 6.56E7_rk)
+      !call find_set_state_variable(_S0_,&
+      !  is_solid = .true.,density = 6.56E7_rk)
       !Fe
-      call find_set_state_variable(_Fe3_,&
-        is_solid = .true.,density = 3.27E7_rk)
-      call find_set_state_variable(_FeCO3_,&
-        is_solid = .true.,density = 2.93E7_rk)
-      call find_set_state_variable(_FeS_,&
-        is_solid = .true.,density = 5.90E7_rk)
-      call find_set_state_variable(_FeS2_,&
-        is_solid = .true.,density = 4.17E7_rk)
+      !call find_set_state_variable(_Fe3_,&
+      !  is_solid = .true.,density = 3.27E7_rk)
+      !call find_set_state_variable(_FeCO3_,&
+      !  is_solid = .true.,density = 2.93E7_rk)
+      !call find_set_state_variable(_FeS_,&
+      !  is_solid = .true.,density = 5.90E7_rk)
+      !call find_set_state_variable(_FeS2_,&
+      !  is_solid = .true.,density = 4.17E7_rk)
       !Mn
-      call find_set_state_variable(_Mn4_,&
-        is_solid = .true.,density = 5.78E7_rk)
-      call find_set_state_variable(_MnCO3_,&
-        is_solid = .true.,density = 3.20E7_rk)
-      call find_set_state_variable(_MnS_,&
-        is_solid = .true.,density = 4.60E7_rk)
+      !call find_set_state_variable(_Mn4_,&
+      !  is_solid = .true.,density = 5.78E7_rk)
+      !call find_set_state_variable(_MnCO3_,&
+      !  is_solid = .true.,density = 3.20E7_rk)
+      !call find_set_state_variable(_MnS_,&
+      !  is_solid = .true.,density = 4.60E7_rk)
       !Silicon particulate
-      call find_set_state_variable(_Sipart_,&
-        is_solid = .true.,density = 4.40E7_rk)
+      !call find_set_state_variable(_Sipart_,&
+      !  is_solid = .true.,density = 4.40E7_rk)
       !organic compounds
-      call find_set_state_variable(_Phy_,&
-        is_solid = .true.,density = 1.5E7_rk)
-      call find_set_state_variable(_PON_,&
-        is_solid = .true.,density = 1.5E7_rk)
+      !call find_set_state_variable(_Phy_,&
+      !  is_solid = .true.,density = 1.5E7_rk)
+      !call find_set_state_variable(_PON_,&
+      !  is_solid = .true.,density = 1.5E7_rk)
       !!small-size POM
       !call find_set_state_variable("R4_c",&
       !  is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
