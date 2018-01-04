@@ -15,7 +15,8 @@
 
 module ice_mod
   use fabm_types, only: rk
-
+  use yaml_mod !to use a function mentioned in ipbm.h
+  
   implicit none
   private
   !NaN value
@@ -61,13 +62,17 @@ contains
     type(ice):: constructor_ice
     integer,intent(in):: number_of_days
     real(rk),dimension(:),intent(in):: ice_thickness
-
+    
+    real(rk):: ice_layers_resolution
+    
+    ice_layers_resolution = _ICE_LAYERS_RESOLUTION_
+    
     !NaN
     D_QNAN = 0._rk
     D_QNAN = D_QNAN / D_QNAN
 
     constructor_ice%number_of_layers = &
-      int(maxval(ice_thickness)/_ICE_LAYERS_RESOLUTION_)+2
+      int(maxval(ice_thickness)/ice_layers_resolution)+2
     constructor_ice%number_of_days   = number_of_days
     allocate(constructor_ice%&
     air_ice_index (constructor_ice%number_of_days))
@@ -94,8 +99,12 @@ contains
     real(rk),dimension(:),intent(in):: ice_thickness
     integer i
 
+    real(rk):: ice_layers_resolution
+    
+    ice_layers_resolution = _ICE_LAYERS_RESOLUTION_
+    
     forall (i = 1:self%number_of_layers)
-      self%depth_face(i,:) = ice_thickness-i*_ICE_LAYERS_RESOLUTION_
+      self%depth_face(i,:) = ice_thickness-i*ice_layers_resolution
     end forall
     where (self%depth_face<0._rk)
       self%depth_face = D_QNAN

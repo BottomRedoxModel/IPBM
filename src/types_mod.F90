@@ -10,6 +10,7 @@
 ! Original author(s): Shamil Yakubov
 !-----------------------------------------------------------------------
 
+#include "../include/ipbm.h"
 #include "../include/parameters.h"
 
 module types_mod

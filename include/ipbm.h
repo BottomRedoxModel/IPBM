@@ -1,4 +1,14 @@
-#define _FABM_YAML_NAME_			      get_ipbm_string_parameter('fabm_yaml_name')
+#define _PURE_ERSEM_ 0
+
+#define _LINE_      write(*,*) repeat('*',79)
+#define _PAUSE_     read(*,*)
+
+#define _SECONDS_PER_CIRCLE_        300
+
+!horizontal flux rate
+#define _HMIX_RATE_					0.00333_rk
+
+#define _FABM_YAML_NAME_			get_ipbm_string_parameter('fabm_yaml_name')
 #define _FILE_NAME_                 get_ipbm_string_parameter('input_file_name')
 #define _INITIALIZATION_SINCE_YEAR_ get_ipbm_real_parameter('initialization_since_year') 
 #define _DEPTH_ON_BOUNDARY_         get_ipbm_string_parameter('depth_on_boundary')
@@ -15,38 +25,41 @@
 #define _FILE_NAME_WATER_           'water.nc'
 #define _FILE_NAME_SEDIMENTS_       'sediments.nc'
 
-#define _SECONDS_PER_CIRCLE_        300
+#define _LONGITUDE_                 get_ipbm_real_parameter('longitude')
+#define _LATITUDE_                  get_ipbm_real_parameter('latitude')
 
-#define _LONGITUDE_                 get_ipbm_real_parameter(longitude) 77.8_rk
-#define _LATITUDE_                  get_ipbm_real_parameter(latitude) 77.3_rk
+#define _WIDTH_BBL_                 get_ipbm_real_parameter('width_bbl')
+#define _RESOLUTION_BBL_            get_ipbm_real_parameter('resolution_bbl')
 
-#define _WIDTH_BBL_                 get_ipbm_real_parameter(width_bbl) 0.5_rk
-#define _RESOLUTION_BBL_            get_ipbm_real_parameter(resolution_bbl) 0.1_rk
+#define _WIDTH_SEDIMENTS_           get_ipbm_real_parameter('width_sediments')
+#define _RESOLUTION_SEDIMENTS_      get_ipbm_real_parameter('resolution_sediments')
 
-#define _WIDTH_SEDIMENTS_           get_ipbm_real_parameter(width_sediments) 0.1_rk
-#define _RESOLUTION_SEDIMENTS_      get_ipbm_real_parameter(resolution_sediments) 0.02_rk
+#define _ICE_LAYERS_RESOLUTION_     get_ipbm_real_parameter('ice_layers_resolution')
 
-#define _ICE_LAYERS_RESOLUTION_     get_ipbm_real_parameter(ice_layers_resolution) 0.06_rk
+#define _Alk_                       get_ipbm_string_parameter('Alk')
+#define _DIC_                       get_ipbm_string_parameter('DIC')
+#define _PO4_                       get_ipbm_string_parameter('PO4')
+#define _NO3_                       get_ipbm_string_parameter('NO3')
+#define _Si_                        get_ipbm_string_parameter('Si')
 
-#define _O2_                        'O2_o'
-#define _CaCO3_                     'L2_c'
+#define _O2_                        get_ipbm_string_parameter('O2')
 
-#define _Alk_                       'B_C_Alk'
-#define _DIC_                       'B_C_DIC'
-#define _PO4_                       'B_NUT_PO4'
-#define _NO3_                       'B_NUT_NO3'
-#define _Si_                        'B_NUT_Si'
-#define _NH4_                       'B_NUT_NH4'
-#define _H2S_                       'B_S_H2S'
-#define _CH4_                       'B_CH4_CH4'
-#define _S0_                        'B_S_S0'
-#define _Fe3_                       'B_Fe_Fe3'
-#define _FeCO3_                     'B_Fe_FeCO3'
-#define _FeS_                       'B_Fe_FeS'
-#define _FeS2_                      'B_Fe_FeS2'
-#define _Mn4_                       'B_Mn_Mn4'
-#define _MnCO3_                     'B_Mn_MnCO3'
-#define _MnS_                       'B_Mn_MnS'
-#define _Sipart_                    'B_Si_Sipart'
-#define _Phy_                       'B_BIO_Phy'
-#define _PON_                       'B_BIO_PON'
+#define _CaCO3_                     get_ipbm_string_parameter('CaCO3')
+#define _S0_                        get_ipbm_string_parameter('S0')
+#define _Fe3_                       get_ipbm_string_parameter('Fe3')
+#define _FeCO3_                     get_ipbm_string_parameter('FeCO3')
+#define _FeS_                       get_ipbm_string_parameter('FeS')
+#define _FeS2_                      get_ipbm_string_parameter('FeS2')
+#define _Mn4_                       get_ipbm_string_parameter('Mn4')
+#define _MnCO3_                     get_ipbm_string_parameter('MnCO3')
+#define _MnS_                       get_ipbm_string_parameter('MnS')
+#define _Sipart_                    get_ipbm_string_parameter('Sipart')
+#define _Phy_                       get_ipbm_string_parameter('Phy')
+#define _PON_                       get_ipbm_string_parameter('PON')
+#define _SmallPOM_                  get_ipbm_string_parameter('SmallPOM')
+#define _MediumPOM_                 get_ipbm_string_parameter('MediumPOM')
+#define _LargePOM_                  get_ipbm_string_parameter('LargePOM')
+#define _Diatoms_                   get_ipbm_string_parameter('Diatoms')
+#define _NanoPhy_                   get_ipbm_string_parameter('NanoPhy')
+#define _PicoPhy_                   get_ipbm_string_parameter('PicoPhy')
+#define _MicroPhy_                  get_ipbm_string_parameter('MicroPhy')

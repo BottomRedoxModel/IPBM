@@ -18,6 +18,7 @@ module variables_mod
   use input_mod
   use ice_mod
   use fabm_driver
+  use yaml_mod !to use a function mentioned in ipbm.h
 
   implicit none
   !NaN value
@@ -173,11 +174,16 @@ contains
     integer time
     integer i
 
-    real(rk):: width_bbl = _WIDTH_BBL_
-    real(rk):: resolution_bbl = _RESOLUTION_BBL_
-    real(rk):: width_sediments = _WIDTH_SEDIMENTS_
-    real(rk):: resolution_sediments = _RESOLUTION_SEDIMENTS_
+    real(rk):: width_bbl
+    real(rk):: resolution_bbl
+    real(rk):: width_sediments
+    real(rk):: resolution_sediments
 
+    width_bbl = _WIDTH_BBL_
+    resolution_bbl = _RESOLUTION_BBL_
+    width_sediments = _WIDTH_SEDIMENTS_
+    resolution_sediments = _RESOLUTION_SEDIMENTS_
+    
     call name_input%get_var(inname,var)
     select type(var)
     class is(variable_1d)
@@ -196,13 +202,13 @@ contains
     total_boundaries = ice_layers+length+bbl_count+sediments_count
 
     !adding indexes of inner boundaries
-    new_var = alone_variable(ice_water_index,'','',ice_water)
+    new_var = alone_variable(ice_water_index,ice_water_index,'Layer',ice_water)
     call self%add_item(new_var)
-    new_var = alone_variable(water_bbl_index,'','',water_bbl)
+    new_var = alone_variable(water_bbl_index,water_bbl_index,'Layer',water_bbl)
     call self%add_item(new_var)
-    new_var = alone_variable(bbl_sediments_index,'','',bbl_sediments)
+    new_var = alone_variable(bbl_sediments_index,water_bbl_index,'Layer',bbl_sediments)
     call self%add_item(new_var)
-    new_var = alone_variable(number_of_boundaries,'','',total_boundaries)
+    new_var = alone_variable(number_of_boundaries,water_bbl_index,'Layer',total_boundaries)
     call self%add_item(new_var)
 
     select type(var)
@@ -254,11 +260,11 @@ contains
     allocate(active_layers(time))
     ice_water_i = self%get_value("ice_water_index")
     active_layers = ice_water_i+self%type_ice%get_active_layers()
-    new_var_1d = variable_1d(air_ice_indexes,'','',active_layers)
+    new_var_1d = variable_1d(air_ice_indexes,air_ice_indexes,'Layers',active_layers)
     call self%add_item(new_var_1d)
 
     length = self%get_value("number_of_boundaries")-1._rk
-    new_var = alone_variable(number_of_layers,'','',length)
+    new_var = alone_variable(number_of_layers,number_of_layers,'Layer',length)
     call self%add_item(new_var)
 
     call self%get_var(_DEPTH_ON_BOUNDARY_,var)
@@ -272,7 +278,7 @@ contains
                           var%value(i,j))/2._rk)
         end do
       end do
-      new_var_2d = variable_2d(inname,'',var%units,mid_depths)
+      new_var_2d = variable_2d(inname,inname,var%units,mid_depths)
       call self%add_item(new_var_2d)
       !for example: for 4 boundaries exists 3 layers
       !and 3 midpoints of these layers and 2 dz
@@ -283,7 +289,7 @@ contains
           dz(i-1,j) = abs(mid_depths(i,j)-mid_depths(i-1,j))
         end do
       end do
-      new_var_2d = variable_2d(inname_increments,'',var%units,dz)
+      new_var_2d = variable_2d(inname_increments,inname_increments,var%units,dz)
       call self%add_item(new_var_2d)
     class default
       call fatal_error("Add grid on centers",&
@@ -346,7 +352,7 @@ contains
                           var%value(i,j))
         end do
       end do
-      new_var = variable_2d(inname,'',var%units,value_2d)
+      new_var = variable_2d(inname,inname,var%units,value_2d)
       call self%add_item(new_var)
     class default
       call fatal_error("Add layer_thicknesses",&
@@ -365,6 +371,11 @@ contains
     type(variable_2d):: new_var
     integer i,length,time
     integer water_bbl_index,ice_water_index
+    character(64):: temperature_name, salinity_name, density_name
+    
+    temperature_name = trim(_TEMPERATURE_)
+    salinity_name = trim(_SALINITY_)
+    density_name = trim(_RHO_)
 
     length          = self%get_value("number_of_layers")
     water_bbl_index = self%get_value("water_bbl_index")
@@ -377,27 +388,26 @@ contains
     select type(var)
     class is(variable_2d)
       value_2d(water_bbl_index:ice_water_index-1,:time) = var%value
-      select case(inname)
-      case(_TEMPERATURE_)
+      if (inname == temperature_name) then
         allocate(air_temp(time))
         allocate(ice_thickness(time))
         air_temp      = self%get_column(_ICE_SURFACE_TEMPERATURE_)
         ice_thickness = self%get_column(_ICE_THICKNESS_)
         value_2d(ice_water_index:,:time) = self%type_ice%do_ice_temperature(&
           air_temp,value_2d(ice_water_index-1,:time),ice_thickness)
-      case(_SALINITY_)
+      else if (inname == salinity_name) then
         value_2d(ice_water_index:,:time) = self%type_ice%do_ice_brine_salinity(&
           value_2d(ice_water_index-1,:time))
-      case(_RHO_)
+      else if (inname == density_name) then
         allocate(salinity(length,time))
-        salinity = self%get_array(_SALINITY_)
+        salinity = self%get_array(salinity_name)
         value_2d(ice_water_index:,:time) = self%type_ice%do_ice_brine_density(&
           salinity(ice_water_index:,:time))/1000._rk
-      case default
+      else
         forall (i = 1:time)&
           value_2d(ice_water_index:,i) = &
           value_2d(ice_water_index-1,i)
-      end select
+      end if
       forall (i = 1:time)&
         value_2d(:water_bbl_index-1,i) =&
         value_2d(water_bbl_index,i)
@@ -493,7 +503,7 @@ contains
     end forall
     porosity(ice_water_index:,:) = self%type_ice%do_brine_relative_volume(&
           .true.,self%get_column(_ICE_THICKNESS_))
-    new_var = variable_2d(name_porosity,'','',porosity)
+    new_var = variable_2d(name_porosity,name_porosity,'-',porosity)
     call self%add_item(new_var)
 
     !porosity factor 1 for solutes
@@ -504,7 +514,7 @@ contains
     !to [mass per unit volume pore water] for solutes in sediments
     new_var = variable_2d(name_pf_solutes_1,&
                           "Total vol. to pore water vol.",&
-                          '',porosity_factor)
+                          '-',porosity_factor)
     call self%add_item(new_var)
 
     !porosity factor 1 for solids
@@ -519,7 +529,7 @@ contains
     !to [mass per unit volume solids] for solids in sediments
     new_var = variable_2d(name_pf_solids_1,&
                           "Total vol. to vol. solids",&
-                          '',porosity_factor)
+                          '-',porosity_factor)
     call self%add_item(new_var)
 
     deallocate(porosity)
@@ -545,7 +555,7 @@ contains
     porosity(ice_water_index+1:,:) = &
           self%type_ice%do_brine_relative_volume(&
           .false.,self%get_column(_ICE_THICKNESS_))
-    new_var = variable_2d(name_porosity_faces,'','',porosity)
+    new_var = variable_2d(name_porosity_faces,name_porosity_faces,'-',porosity)
     call self%add_item(new_var)
     w_b = 0._rk
     u_b = 0._rk
@@ -566,7 +576,7 @@ contains
     !across layer interfaces
     new_var = variable_2d(name_pf_solutes_2,&
                           "Area restriction factor - solutes",&
-                          '',porosity_factor)
+                          '-',porosity_factor)
     call self%add_item(new_var)
 
     !porosity factor 2 for solids
@@ -581,7 +591,7 @@ contains
     !across layer interfaces
     new_var = variable_2d(name_pf_solids_2,&
                           "Area restriction factor - solids",&
-                          '',porosity_factor)
+                          '-',porosity_factor)
     call self%add_item(new_var)
 
     !tortuosity on layer interfaces
@@ -590,7 +600,7 @@ contains
     tortuosity = sqrt(1._rk-2._rk*log(porosity))
     new_var = variable_2d(name_tortuosity,&
                           "Tortousity on layer interfaces",&
-                          '',tortuosity)
+                          '-',tortuosity)
     call self%add_item(new_var)
   end subroutine
 

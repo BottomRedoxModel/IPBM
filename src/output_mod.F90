@@ -21,6 +21,7 @@ module output_mod
                         type_bulk_variable_id,standard_variables
   use fabm_types, only: rk
   use netcdf
+  use yaml_mod !to use a function mentioned in ipbm.h
 
   implicit none
   private
@@ -178,8 +179,11 @@ contains
     !fabm standard variables
     fabm_standard_id = model%get_bulk_variable_id(&
                standard_variables%downwelling_photosynthetic_radiative_flux)
+    !call check(nf90_def_var(&
+    !           self%nc_id,fabm_standard_id%variable%name,&
+    !           NF90_REAL,dim_ids,self%par_id))
     call check(nf90_def_var(&
-               self%nc_id,fabm_standard_id%variable%name,&
+               self%nc_id,"PAR",&
                NF90_REAL,dim_ids,self%par_id))
     call check(set_attributes(ncid=self%nc_id,&
                id=self%par_id,&

@@ -22,7 +22,7 @@ module transport
   use fabm_types
   use variables_mod,only: ipbm_standard_variables,&
                           ipbm_state_variable
-  use yaml_mod
+  use yaml_mod !to use a function mentioned in ipbm.h
 
   implicit none
   private
@@ -31,13 +31,12 @@ module transport
   integer previous_ice_index
   integer number_of_parameters
   integer number_of_layers
+  integer ,allocatable,dimension(:):: ice_algae_ids
   real(rk),allocatable,dimension(:):: depth
   real(rk),allocatable,dimension(:):: porosity
-  !absorption_of_silt value - ersem light
-  !real(rk),allocatable,dimension(:):: aos_value
   !for coupling with fabm
-  !realday for link scalar subroutine, bdepth - bottom depth
-  real(rk),                         target:: bdepth!,realday
+  !bdepth - bottom depth
+  real(rk),                         target:: bdepth
   real(rk),allocatable,dimension(:),target:: cell! - dz
   real(rk),allocatable,dimension(:),target:: temp
   real(rk),allocatable,dimension(:),target:: salt
@@ -54,15 +53,21 @@ module transport
                        dimension(:),target:: state_vars
   !fabm model
   type(type_model) fabm_model
-  !absorption_of_silt - ersem light
-  !type(type_bulk_standard_variable) aos
   !ids for fabm
-  !type(type_scalar_variable_id),save:: id_yearday !- ersem zenith
+#if _PURE_ERSEM_ == 1
+    real(rk)                        ,target:: realday
+    real(rk)                        ,target:: ssf
+    type(type_scalar_variable_id)     ,save:: id_yearday !- ersem zenith
+    type(type_horizontal_variable_id) ,save:: ssf_id !- ersem light
+    !absorption_of_silt value - ersem light
+    real(rk),allocatable,dimension(:):: aos_value
+    !absorption_of_silt - ersem light
+    type(type_bulk_standard_variable) aos
+#endif
   type(type_bulk_variable_id),      save:: temp_id,salt_id,h_id
   type(type_bulk_variable_id),      save:: pres_id,rho_id,par_id
   type(type_horizontal_variable_id),save:: lon_id,lat_id,ws_id
   type(type_horizontal_variable_id),save:: taub_id,bdepth_id
-  !type(type_horizontal_variable_id),save:: ssf_id !- ersem light
 
   interface do_relaxation
     module procedure do_relaxation_single
@@ -82,7 +87,7 @@ contains
     real(rk) D_QNAN
 
     integer water_sediments_index
-    integer i
+    integer i, k
 
     !NaN
     D_QNAN = 0._rk
@@ -93,13 +98,16 @@ contains
     !initializing fabm from fabm.yaml file
     _LINE_
     call fabm_create_model_from_yaml_file(fabm_model,_FABM_YAML_NAME_)
+    !_PAUSE_
     _LINE_
     !
     !initializing ipbm standard_variables
     !makes grid, it starts from bottom (1) to surface (end point)
     standard_vars = ipbm_standard_variables()
+    !_PAUSE_
     number_of_layers = standard_vars%get_value(&
                            "number_of_layers")
+    number_of_parameters = size(fabm_model%state_variables)
     !
     !fabm grid
     call fabm_set_domain(fabm_model,number_of_layers)
@@ -107,7 +115,6 @@ contains
     call fabm_model%set_bottom_index(1)
     !
     !linking state variables to fabm
-    number_of_parameters = size(fabm_model%state_variables)
     allocate(state_vars(number_of_parameters))
     allocate(zeros(number_of_layers))
     zeros = 0._rk
@@ -130,6 +137,35 @@ contains
       call fabm_link_bulk_state_data(fabm_model,i,state_vars(i)%value)
       call state_vars(i)%print_name()
     end do
+    _LINE_
+    !_PAUSE_
+    !getting ice algae parameters ids
+    k = 0
+    do i = 1,number_of_parameters
+      if (i == find_index_of_state_variable(trim(_Phy_)).or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_c").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_n").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_p").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_s").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_Chl")&
+          ) then
+          k = k + 1
+      end if
+    end do
+    allocate(ice_algae_ids(k))
+    k = 1
+    do i = 1,number_of_parameters
+      if (i == find_index_of_state_variable(trim(_Phy_)).or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_c").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_n").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_p").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_s").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_Chl")&
+          ) then
+          ice_algae_ids(k) = i
+          k = k + 1
+      end if
+    end do
     !
     !in case of existing bottom and surface variables
     allocate(bcc(size(fabm_model%bottom_state_variables)))
@@ -142,10 +178,9 @@ contains
       scc(i) = fabm_model%surface_state_variables(i)%initial_value
       call fabm_link_surface_state_data(fabm_model,i,scc(i))
     end do
-    _LINE_
     !
     !initializing values
-    !ipbm needs to know is variable a solid or gas
+    !ipbm needs to know is variable a solid
     call configurate_state_variables()
     call fabm_initialize_state(fabm_model,1,number_of_layers)
     allocate(air_ice_indexes,source=&
@@ -170,9 +205,20 @@ contains
     !
     !linking variables
     !yearday - ersem zenith_angle
-    !id_yearday = fabm_model%get_scalar_variable_id(&
-    !  standard_variables%number_of_days_since_start_of_the_year)
-    !call fabm_model%link_scalar(id_yearday,realday)
+#if _PURE_ERSEM_ == 1
+      id_yearday = fabm_model%get_scalar_variable_id(&
+        standard_variables%number_of_days_since_start_of_the_year)
+      call fabm_model%link_scalar(id_yearday,realday)
+      ssf_id  = fabm_model%get_horizontal_variable_id(&
+                standard_variables%surface_downwelling_shortwave_flux)
+      call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
+      !absorption of silt - ersem light
+      aos = type_bulk_standard_variable(name="absorption_of_silt",units="1")
+      allocate(aos_value(number_of_layers))
+      aos_value(:water_sediments_index-1) = 4.e-5_rk
+      call fabm_link_bulk_data(fabm_model,aos,aos_value)
+#endif
+
     !cell thickness - ersem
     h_id    = fabm_model%get_bulk_variable_id(&
               standard_variables%cell_thickness)
@@ -203,11 +249,6 @@ contains
     pressure = depth+10._rk
     pressure(int(standard_vars%get_value("ice_water_index")):) = 10._rk
     call fabm_link_bulk_data(fabm_model,pres_id,pressure)
-    !surface shortwave flux - ersem light
-    !ssf_id  = fabm_model%get_horizontal_variable_id(&
-    !          standard_variables%surface_downwelling_shortwave_flux)
-    !allocate(radiative_flux)
-    !call fabm_link_horizontal_data(fabm_model,ssf_id,radiative_flux)
     !photosynthetic_radiative_flux
     par_id  = fabm_model%get_bulk_variable_id(&
               standard_variables%downwelling_photosynthetic_radiative_flux)
@@ -240,11 +281,6 @@ contains
     call fabm_link_horizontal_data(fabm_model,&
          standard_variables%mole_fraction_of_carbon_dioxide_in_air,&
          380._rk)
-    !absorption of silt - ersem light
-    !aos = type_bulk_standard_variable(name="absorption_of_silt",units="1")
-    !allocate(aos_value(number_of_layers))
-    !aos_value = 4.e-5_rk
-    !call fabm_link_bulk_data(fabm_model,aos,aos_value)
 
     !check all needed by fabm model variables
     call fabm_check_ready(fabm_model)
@@ -252,125 +288,107 @@ contains
     previous_ice_index=0
   contains
     subroutine configurate_state_variables()
-      !ammonium NH4+
-      !call find_set_state_variable(_NH4_,is_gas = .true.)
-      !oxygen O2
-      !call find_set_state_variable(_O2_,is_gas = .true.)
-      !call find_set_state_variable(_H2S_,is_gas = .true.)
-      !call find_set_state_variable(_CH4_,is_gas = .true.)
-
       !calcite - CaCO3
       call find_set_state_variable(_CaCO3_,&
         is_solid = .true.,density = 2.80E7_rk)
       !S0
-      !call find_set_state_variable(_S0_,&
-      !  is_solid = .true.,density = 6.56E7_rk)
+      call find_set_state_variable(_S0_,&
+        is_solid = .true.,density = 6.56E7_rk)
       !Fe
-      !call find_set_state_variable(_Fe3_,&
-      !  is_solid = .true.,density = 3.27E7_rk)
-      !call find_set_state_variable(_FeCO3_,&
-      !  is_solid = .true.,density = 2.93E7_rk)
-      !call find_set_state_variable(_FeS_,&
-      !  is_solid = .true.,density = 5.90E7_rk)
-      !call find_set_state_variable(_FeS2_,&
-      !  is_solid = .true.,density = 4.17E7_rk)
+      call find_set_state_variable(_Fe3_,&
+        is_solid = .true.,density = 3.27E7_rk)
+      call find_set_state_variable(_FeCO3_,&
+        is_solid = .true.,density = 2.93E7_rk)
+      call find_set_state_variable(_FeS_,&
+        is_solid = .true.,density = 5.90E7_rk)
+      call find_set_state_variable(_FeS2_,&
+        is_solid = .true.,density = 4.17E7_rk)
       !Mn
-      !call find_set_state_variable(_Mn4_,&
-      !  is_solid = .true.,density = 5.78E7_rk)
-      !call find_set_state_variable(_MnCO3_,&
-      !  is_solid = .true.,density = 3.20E7_rk)
-      !call find_set_state_variable(_MnS_,&
-      !  is_solid = .true.,density = 4.60E7_rk)
+      call find_set_state_variable(_Mn4_,&
+        is_solid = .true.,density = 5.78E7_rk)
+      call find_set_state_variable(_MnCO3_,&
+        is_solid = .true.,density = 3.20E7_rk)
+      call find_set_state_variable(_MnS_,&
+        is_solid = .true.,density = 4.60E7_rk)
       !Silicon particulate
-      !call find_set_state_variable(_Sipart_,&
-      !  is_solid = .true.,density = 4.40E7_rk)
+      call find_set_state_variable(_Sipart_,&
+        is_solid = .true.,density = 4.40E7_rk)
       !organic compounds
-      !call find_set_state_variable(_Phy_,&
-      !  is_solid = .true.,density = 1.5E7_rk)
-      !call find_set_state_variable(_PON_,&
-      !  is_solid = .true.,density = 1.5E7_rk)
-      !!small-size POM
-      !call find_set_state_variable("R4_c",&
-      !  is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
-      !call find_set_state_variable("R4_n",&
-      !  is_solid = .true.,density = 1.5E7_rk)
-      !call find_set_state_variable("R4_p",&
-      !  is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
-      !call find_set_state_variable("R4_f",&
-      !  is_solid = .true.,density = 1.5E7_rk*5._rk/1260._rk)
-      !!medium-size POM
-      !call find_set_state_variable("R6_c",&
-      !  is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
-      !call find_set_state_variable("R6_n",&
-      !  is_solid = .true.,density = 1.5E7_rk)
-      !call find_set_state_variable("R6_p",&
-      !  is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
-      !call find_set_state_variable("R6_s",&
-      !  is_solid = .true.,density = 1.5E7_rk*1._rk/1000._rk)
-      !call find_set_state_variable("R6_f",&
-      !  is_solid = .true.,density = 1.5E7_rk*5._rk/1260._rk)
-      !!large-size POM
-      !call find_set_state_variable("R8_c",&
-      !  is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
-      !call find_set_state_variable("R8_n",&
-      !  is_solid = .true.,density = 1.5E7_rk)
-      !call find_set_state_variable("R8_p",&
-      !  is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
-      !call find_set_state_variable("R8_s",&
-      !  is_solid = .true.,density = 1.5E7_rk*1._rk/1000._rk)
-      !diatoms
-      call find_set_state_variable("P1_c",&
-        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
-      call find_set_state_variable("P1_n",&
+      call find_set_state_variable(_Phy_,&
         is_solid = .true.,density = 1.5E7_rk)
-      call find_set_state_variable("P1_p",&
+      call find_set_state_variable(_PON_,&
+        is_solid = .true.,density = 1.5E7_rk)
+      !small-size POM
+      call find_set_state_variable(trim(_SmallPOM_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
+      call find_set_state_variable(trim(_SmallPOM_) // "_n",&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(trim(_SmallPOM_) // "_p",&
         is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
-      !call find_set_state_variable("P1_f",&
-      !  is_solid = .true.,density = 1.5E7_rk*5._rk/1260._rk)
-      call find_set_state_variable("P1_s",& !rios 1998
+      !medium-size POM
+      call find_set_state_variable(trim(_MediumPOM_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
+      call find_set_state_variable(trim(_MediumPOM_) // "_n",&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(trim(_MediumPOM_) // "_p",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
+      call find_set_state_variable(trim(_MediumPOM_) // "_s",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/1000._rk)
+      !large-size POM
+      call find_set_state_variable(trim(_LargePOM_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
+      call find_set_state_variable(trim(_LargePOM_) // "_n",&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(trim(_LargePOM_) // "_p",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
+      call find_set_state_variable(trim(_LargePOM_) // "_s",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/1000._rk)
+      !diatoms
+      call find_set_state_variable(trim(_Diatoms_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
+      call find_set_state_variable(trim(_Diatoms_) // "_n",&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(trim(_Diatoms_) // "_p",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
+      call find_set_state_variable(trim(_Diatoms_) // "_s",& !rios 1998
         is_solid = .true.,density = 1.5E7_rk*6.2_rk/15.7_rk)
-      call find_set_state_variable("P1_Chl",&
+      call find_set_state_variable(trim(_Diatoms_) // "_Chl",&
+        is_solid = .true.,density = 1.2E7_rk)!1200e6 from wiki
+      !nanophytoplankton
+      call find_set_state_variable(trim(_NanoPhy_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
+      call find_set_state_variable(trim(_NanoPhy_) // "_n",&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(trim(_NanoPhy_) // "_p",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
+      call find_set_state_variable(trim(_NanoPhy_) // "_Chl",&
+        is_solid = .true.,density = 1.2E7_rk)!1200e6 from wiki
+      !picophytoplankton
+      call find_set_state_variable(trim(_PicoPhy_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
+      call find_set_state_variable(trim(_PicoPhy_) // "_n",&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(trim(_PicoPhy_) // "_p",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
+      call find_set_state_variable(trim(_PicoPhy_) // "_Chl",&
+        is_solid = .true.,density = 1.2E7_rk)!1200e6 from wiki
+      !microphytoplankton
+      call find_set_state_variable(trim(_MicroPhy_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
+      call find_set_state_variable(trim(_MicroPhy_) // "_n",&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(trim(_MicroPhy_) // "_p",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
+      call find_set_state_variable(trim(_MicroPhy_) // "_Chl",&
         is_solid = .true.,density = 1.2E7_rk)!1200e6 from wiki
       !microzooplankton
-      call find_set_state_variable("Z5_c",&
-        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
-      call find_set_state_variable("Z5_n",&
-        is_solid = .true.,density = 1.5E7_rk)
-      call find_set_state_variable("Z5_p",&
-        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
-      !!nanophytoplankton
-      !call find_set_state_variable("P2_c",&
+      !call find_set_state_variable("Z5_c",&
       !  is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
-      !call find_set_state_variable("P2_n",&
+      !call find_set_state_variable("Z5_n",&
       !  is_solid = .true.,density = 1.5E7_rk)
-      !call find_set_state_variable("P2_p",&
+      !call find_set_state_variable("Z5_p",&
       !  is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
-      !call find_set_state_variable("P2_f",&
-      !  is_solid = .true.,density = 1.5E7_rk*5._rk/1260._rk)
-      !call find_set_state_variable("P2_Chl",&
-      !  is_solid = .true.,density = 1.2E7_rk)!1200e6 from wiki
-      !!picophytoplankton
-      !call find_set_state_variable("P3_c",&
-      !  is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
-      !call find_set_state_variable("P3_n",&
-      !  is_solid = .true.,density = 1.5E7_rk)
-      !call find_set_state_variable("P3_p",&
-      !  is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
-      !call find_set_state_variable("P3_f",&
-      !  is_solid = .true.,density = 1.5E7_rk*5._rk/1260._rk)
-      !call find_set_state_variable("P3_Chl",&
-      !  is_solid = .true.,density = 1.2E7_rk)!1200e6 from wiki
-      !microphytoplankton
-      call find_set_state_variable("P4_c",&
-        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
-      call find_set_state_variable("P4_n",&
-        is_solid = .true.,density = 1.5E7_rk)
-      call find_set_state_variable("P4_p",&
-        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
-      !call find_set_state_variable("P4_f",&
-      !  is_solid = .true.,density = 1.5E7_rk*5._rk/1260._rk)
-      call find_set_state_variable("P4_Chl",&
-        is_solid = .true.,density = 1.2E7_rk)!1200e6 from wiki
+      !read (*,*)
     end subroutine
   end subroutine
   !
@@ -382,7 +400,7 @@ contains
     type(type_output):: netcdf_ice
     type(type_output):: netcdf_water
     type(type_output):: netcdf_sediments
-    integer:: year = _INITIALIZATION_SINCE_YEAR_
+    integer:: year
     integer ice_water_index,water_bbl_index,bbl_sediments_index
     integer number_of_days
     integer surface_index
@@ -395,6 +413,8 @@ contains
     real(rk),allocatable,dimension(:):: indices,indices_faces
     real(rk),allocatable,dimension(:):: air_ice_indexes
 
+    year = _INITIALIZATION_SINCE_YEAR_
+    
     allocate(indices(number_of_layers))
     indices = (/(i,i=number_of_layers,1,-1)/)
     allocate(indices_faces(number_of_layers+1))
@@ -412,14 +432,14 @@ contains
     !first day cycle
     call first_day_circle(100,ice_water_index,&
                           water_bbl_index,bbl_sediments_index,&
-                          indices,indices_faces)
+                          indices,indices_faces,day)
     !cycle first year 10 times
     call first_year_circle(day,year,ice_water_index,&
                            water_bbl_index,bbl_sediments_index,&
                            indices,indices_faces)
 
     netcdf_ice = type_output(fabm_model,standard_vars,_FILE_NAME_ICE_,&
-                             ice_water_index,ice_water_index+20,&
+                             ice_water_index,number_of_layers,&
                              number_of_layers)
     netcdf_water = type_output(fabm_model,standard_vars,_FILE_NAME_WATER_,&
                                bbl_sediments_index,ice_water_index-1,&
@@ -443,8 +463,12 @@ contains
       call fabm_model%set_surface_index(surface_index-1)
 
       !update links
-      !realday = day !to convert integer to real - ersem zenith_angle
-      !call fabm_model%link_scalar(id_yearday,realday)
+#if _PURE_ERSEM_ == 1
+        realday = day !to convert integer to real - ersem zenith_angle
+        ssf = surface_radiative_flux(_LATITUDE_,day)
+        call fabm_model%link_scalar(id_yearday,realday)
+        call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
+#endif
       !cell thickness - ersem
       cell = standard_vars%get_column("layer_thicknesses",i)
       call fabm_link_bulk_data(fabm_model,h_id,cell)
@@ -457,12 +481,14 @@ contains
       !density
       density = standard_vars%get_column(_RHO_,i)+1000._rk
       call fabm_link_bulk_data(fabm_model,rho_id,density)
-      !par
-      call calculate_radiative_flux(&
-        surface_radiative_flux(_LATITUDE_,day),&
-        standard_vars%get_value(_SNOW_THICKNESS_,i),&
-        standard_vars%get_value(_ICE_THICKNESS_ ,i))
-      call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
+#if _PURE_ERSEM_ == 0     
+        !par
+        call calculate_radiative_flux(&
+          surface_radiative_flux(_LATITUDE_,day),&
+          standard_vars%get_value(_SNOW_THICKNESS_,i),&
+          standard_vars%get_value(_ICE_THICKNESS_ ,i))
+        call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
+#endif      
       !bottom stress - ersem
       !call fabm_link_horizontal_data(fabm_model,taub_id,taub)
 
@@ -509,7 +535,7 @@ contains
   !
   subroutine first_day_circle(counter,ice_water_index,&
                               water_bbl_index,bbl_sediments_index,&
-                              indices,indices_faces)
+                              indices,indices_faces,day)
     use output_mod
 
     integer,intent(in):: counter
@@ -517,6 +543,7 @@ contains
     integer,intent(in):: bbl_sediments_index
     real(rk),allocatable,intent(in):: indices(:)
     real(rk),allocatable,intent(in):: indices_faces(:)
+    integer,intent(in):: day
 
     type(type_output):: netcdf_ice
     type(type_output):: netcdf_water
@@ -546,10 +573,13 @@ contains
     !
     !for netcdf output
     depth = standard_vars%get_column("middle_layer_depths",1)
-    !
     !update links
-    !realday = day !to convert integer to real - ersem zenith_angle
-    !call fabm_model%link_scalar(id_yearday,realday)
+#if _PURE_ERSEM_ == 1
+      realday = day !to convert integer to real - ersem zenith_angle
+      ssf = surface_radiative_flux(_LATITUDE_,day)
+      call fabm_model%link_scalar(id_yearday,realday)
+      call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
+#endif
     !cell thickness - ersem
     cell = standard_vars%get_column("layer_thicknesses",1)
     call fabm_link_bulk_data(fabm_model,h_id,cell)
@@ -562,15 +592,17 @@ contains
     !density
     density = standard_vars%get_column(_RHO_,1)+1000._rk
     call fabm_link_bulk_data(fabm_model,rho_id,density)
-    !par
-    call calculate_radiative_flux(&
-      surface_radiative_flux(_LATITUDE_,14),& !kara case starts 14jan
-      standard_vars%get_value(_SNOW_THICKNESS_,1),&
-      standard_vars%get_value(_ICE_THICKNESS_ ,1))
-    call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
+#if _PURE_ERSEM_ == 0    
+      !par
+      call calculate_radiative_flux(&
+        surface_radiative_flux(_LATITUDE_,day),&
+        standard_vars%get_value(_SNOW_THICKNESS_,1),&
+        standard_vars%get_value(_ICE_THICKNESS_ ,1))
+      call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
+#endif    
     !
     do i = 1,counter
-      call day_circle(1,surface_index,14)
+      call day_circle(1,surface_index,day)
       allocate(depth_faces,source=&
                standard_vars%get_column(_DEPTH_ON_BOUNDARY_,1))
 
@@ -623,7 +655,7 @@ contains
     counter = days_in_year*10
 
     netcdf_ice = type_output(fabm_model,standard_vars,'ice_year.nc',&
-                         ice_water_index,ice_water_index+20,&
+                         ice_water_index,number_of_layers,&
                          number_of_layers)
     netcdf_water = type_output(fabm_model,standard_vars,'water_year.nc',&
                          bbl_sediments_index,ice_water_index-1,&
@@ -651,10 +683,14 @@ contains
       !index for boundaries so for layers it should be -1
       surface_index = air_ice_indexes(pseudo_day)
       call fabm_model%set_surface_index(surface_index-1)
-
+      
       !update links
-      !realday = day !to convert integer to real - ersem zenith_angle
-      !call fabm_model%link_scalar(id_yearday,realday)
+#if _PURE_ERSEM_ == 1
+        realday = day !to convert integer to real - ersem zenith_angle
+        ssf = surface_radiative_flux(_LATITUDE_,day)
+        call fabm_model%link_scalar(id_yearday,realday)
+        call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
+#endif
       !cell thickness - ersem
       cell = standard_vars%get_column("layer_thicknesses",pseudo_day)
       call fabm_link_bulk_data(fabm_model,h_id,cell)
@@ -667,12 +703,14 @@ contains
       !density
       density = standard_vars%get_column(_RHO_,pseudo_day)+1000._rk
       call fabm_link_bulk_data(fabm_model,rho_id,density)
-      !par
-      call calculate_radiative_flux(&
-        surface_radiative_flux(_LATITUDE_,day),&
-        standard_vars%get_value(_SNOW_THICKNESS_,pseudo_day),&
-        standard_vars%get_value(_ICE_THICKNESS_ ,pseudo_day))
-      call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
+#if _PURE_ERSEM_ == 0   
+        !par
+        call calculate_radiative_flux(&
+          surface_radiative_flux(_LATITUDE_,day),&
+          standard_vars%get_value(_SNOW_THICKNESS_,pseudo_day),&
+          standard_vars%get_value(_ICE_THICKNESS_ ,pseudo_day))
+        call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
+#endif      
       !bottom stress - ersem
       !call fabm_link_horizontal_data(fabm_model,taub_id,taub)
 
@@ -1167,8 +1205,9 @@ contains
     type(ipbm_state_variable):: oxygen
 
     !NaN value
-    REAL(rk), PARAMETER :: D_QNAN = &
-              TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
+    !REAL(rk), PARAMETER :: D_QNAN = &
+    !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
+    real(rk) D_QNAN
 
     real(rk):: dcc (surface_index-1,number_of_parameters)
     real(rk):: wbi (surface_index-1,number_of_parameters)
@@ -1183,6 +1222,10 @@ contains
     real(rk) O2stat
     integer i,k,ip
 
+    !NaN
+    D_QNAN = 0._rk
+    D_QNAN = D_QNAN / D_QNAN
+    
     dcc  = 0.0_rk
     wbi  = 0.0_rk
     wti  = 0.0_rk
@@ -1315,8 +1358,6 @@ contains
     !               (1.0_rk-face_porosity(k_sed1))*&
     !               w_1(k_sed1))/face_porosity(k_sed1)
 
-    !find phy to specify its sinking behavior
-    !i = find_index_of_state_variable(_Phy_)
     !Interpolate velocities from FABM (defined on layer midpoints, as for
     !  concentrations) to wti on the layer interfaces
     do ip=1,number_of_parameters
@@ -1338,12 +1379,7 @@ contains
       end if
       wti(1,ip) = wti(2,ip)
       !special vertical sedimentation for diatoms in the ice
-      if (ip==find_index_of_state_variable('P1_c').or.&
-          ip==find_index_of_state_variable('P1_n').or.&
-          ip==find_index_of_state_variable('P1_p').or.&
-          ip==find_index_of_state_variable('P1_s').or.&
-          ip==find_index_of_state_variable('P1_Chl')&
-          ) then
+      if (any(ice_algae_ids==ip)) then
         !set velocity 3 cm/day
         wti(ice_water_index+1:surface_index-1,ip) = -0.03_rk/86400._rk
         wti(ice_water_index,ip) = 0._rk
@@ -1414,11 +1450,7 @@ contains
       !melting
       if (ice_growth<0) then
         ice_growth = abs(ice_growth)
-        if ((j==find_index_of_state_variable('P1_c').or.&
-            j==find_index_of_state_variable('P1_n').or.&
-            j==find_index_of_state_variable('P1_p').or.&
-            j==find_index_of_state_variable('P1_s').or.&
-            j==find_index_of_state_variable('P1_Chl'))&
+        if (any(ice_algae_ids==j)&
             .and.air_ice_indexes(id)/=ice_water_index) then
           do i=1,ice_growth
             state_vars(j)%value(ice_water_index) =&
@@ -1504,9 +1536,13 @@ contains
     integer number_of_vars
     integer i
 
+    if (trim(inname) == "none") then
+      !write(*,*) inname, "wasn't found, skipping"
+      return
+    end if
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
-      if (state_vars(i)%name.eq.inname) then
+      if (state_vars(i)%name.eq.trim(inname)) then
         call state_vars(i)%set_ipbm_state_variable(is_solid,&
           is_gas,use_bound_up,use_bound_low,bound_up,&
           bound_low,density,sinking_velocity,value,layer)
@@ -1534,8 +1570,6 @@ contains
       else if (state_vars(i)%name.eq._Alk_) then
         call do_relaxation(2000._rk,ice_water_index-1,i)
         call do_relaxation(2350._rk,bbl_sed_index,i)
-      !else if (state_vars(i)%name.eq._NH4_) then
-      !  call do_relaxation(1._rk,bbl_sed_index-1,i)
       else if (state_vars(i)%name.eq._PO4_) then
         call do_relaxation(sinusoidal(day,0.5_rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._NO3_) then
@@ -1624,8 +1658,7 @@ contains
         return
       end if
     end do
-    call fatal_error("Search state variable",&
-                     "No such variable")
+    find_index_of_state_variable = -1
   end function
   !
   !checking for negative and NaNs
