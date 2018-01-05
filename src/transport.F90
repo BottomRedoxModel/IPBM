@@ -35,39 +35,47 @@ module transport
   real(rk),allocatable,dimension(:):: depth
   real(rk),allocatable,dimension(:):: porosity
   !for coupling with fabm
-  !bdepth - bottom depth
-  real(rk),                         target:: bdepth
-  real(rk),allocatable,dimension(:),target:: cell! - dz
   real(rk),allocatable,dimension(:),target:: temp
   real(rk),allocatable,dimension(:),target:: salt
   real(rk),allocatable,dimension(:),target:: density
   real(rk),allocatable,dimension(:),target:: pressure
   real(rk),allocatable,dimension(:),target:: radiative_flux
-  !taub - bottom stress
-  real(rk),allocatable,             target:: taub
   !bcc and scc - arrays for bottom and surface fabm variables
   real(rk),allocatable,dimension(:),target:: bcc,scc
   !variables for model
   type(ipbm_standard_variables) standard_vars
   type(ipbm_state_variable),allocatable,&
                        dimension(:),target:: state_vars
-  !fabm model
   type(type_model) fabm_model
-  !ids for fabm
 #if _PURE_ERSEM_ == 1
-    real(rk)                        ,target:: realday
-    real(rk)                        ,target:: ssf
-    type(type_scalar_variable_id)     ,save:: id_yearday !- ersem zenith
-    type(type_horizontal_variable_id) ,save:: ssf_id !- ersem light
+    !bdepth - bottom depth
+    real(rk)                         ,target:: bdepth
+    real(rk),allocatable,dimension(:),target:: cell! - dz
+    !taub - bottom stress
+    real(rk),allocatable             ,target:: taub
+    real(rk)                         ,target:: realday
+    real(rk)                         ,target:: ssf
     !absorption_of_silt value - ersem light
-    real(rk),allocatable,dimension(:):: aos_value
+    real(rk),allocatable,dimension(:),target:: aos_value
+    type(type_scalar_variable_id)      ,save:: id_yearday !- ersem zenith
+    type(type_horizontal_variable_id)  ,save:: ssf_id !- ersem light
     !absorption_of_silt - ersem light
-    type(type_bulk_standard_variable) aos
+    type(type_bulk_standard_variable)  ,save:: aos
+    type(type_horizontal_variable_id)  ,save:: taub_id,bdepth_id
+    type(type_bulk_variable_id)        ,save:: h_id
 #endif
-  type(type_bulk_variable_id),      save:: temp_id,salt_id,h_id
-  type(type_bulk_variable_id),      save:: pres_id,rho_id,par_id
+#if _PURE_MAECS_ == 1
+    !bdepth - bottom depth
+    real(rk)                         ,target:: bdepth
+    real(rk),allocatable,dimension(:),target:: cell! - dz
+    real(rk)                         ,target:: realday
+    type(type_scalar_variable_id)      ,save:: id_yearday !- ersem zenith
+    type(type_horizontal_variable_id)  ,save:: bdepth_id
+    type(type_bulk_variable_id)        ,save:: h_id
+#endif
+  type(type_bulk_variable_id)      ,save:: temp_id,salt_id
+  type(type_bulk_variable_id)      ,save:: pres_id,rho_id,par_id
   type(type_horizontal_variable_id),save:: lon_id,lat_id,ws_id
-  type(type_horizontal_variable_id),save:: taub_id,bdepth_id
 
   interface do_relaxation
     module procedure do_relaxation_single
@@ -152,20 +160,22 @@ contains
           k = k + 1
       end if
     end do
-    allocate(ice_algae_ids(k))
-    k = 1
-    do i = 1,number_of_parameters
-      if (i == find_index_of_state_variable(trim(_Phy_)).or.&
-          i == find_index_of_state_variable(trim(_Diatoms_)//"_c").or.&
-          i == find_index_of_state_variable(trim(_Diatoms_)//"_n").or.&
-          i == find_index_of_state_variable(trim(_Diatoms_)//"_p").or.&
-          i == find_index_of_state_variable(trim(_Diatoms_)//"_s").or.&
-          i == find_index_of_state_variable(trim(_Diatoms_)//"_Chl")&
-          ) then
-          ice_algae_ids(k) = i
-          k = k + 1
-      end if
-    end do
+    if (k > 0) then
+      allocate(ice_algae_ids(k))
+      k = 1
+      do i = 1,number_of_parameters
+        if (i == find_index_of_state_variable(trim(_Phy_)).or.&
+            i == find_index_of_state_variable(trim(_Diatoms_)//"_c").or.&
+            i == find_index_of_state_variable(trim(_Diatoms_)//"_n").or.&
+            i == find_index_of_state_variable(trim(_Diatoms_)//"_p").or.&
+            i == find_index_of_state_variable(trim(_Diatoms_)//"_s").or.&
+            i == find_index_of_state_variable(trim(_Diatoms_)//"_Chl")&
+            ) then
+            ice_algae_ids(k) = i
+            k = k + 1
+        end if
+      end do
+    end if
     !
     !in case of existing bottom and surface variables
     allocate(bcc(size(fabm_model%bottom_state_variables)))
@@ -204,26 +214,6 @@ contains
     end do
     !
     !linking variables
-    !yearday - ersem zenith_angle
-#if _PURE_ERSEM_ == 1
-      id_yearday = fabm_model%get_scalar_variable_id(&
-        standard_variables%number_of_days_since_start_of_the_year)
-      call fabm_model%link_scalar(id_yearday,realday)
-      ssf_id  = fabm_model%get_horizontal_variable_id(&
-                standard_variables%surface_downwelling_shortwave_flux)
-      call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
-      !absorption of silt - ersem light
-      aos = type_bulk_standard_variable(name="absorption_of_silt",units="1")
-      allocate(aos_value(number_of_layers))
-      aos_value(:water_sediments_index-1) = 4.e-5_rk
-      call fabm_link_bulk_data(fabm_model,aos,aos_value)
-#endif
-
-    !cell thickness - ersem
-    h_id    = fabm_model%get_bulk_variable_id(&
-              standard_variables%cell_thickness)
-    allocate(cell(number_of_layers))
-    call fabm_link_bulk_data(fabm_model,h_id,cell)
     !temperature
     temp_id = fabm_model%get_bulk_variable_id(&
               standard_variables%temperature)
@@ -238,14 +228,13 @@ contains
     rho_id  = fabm_model%get_bulk_variable_id(standard_variables%density)
     allocate(density(number_of_layers))
     call fabm_link_bulk_data(fabm_model,rho_id,density)
-    !pressure - does fabm able to calculate it from density?
+    !pressure
     pres_id = fabm_model%get_bulk_variable_id(&
               standard_variables%pressure)
     allocate(depth(number_of_layers))
     allocate(pressure(number_of_layers))
     depth = standard_vars%get_column("middle_layer_depths",1)
-    !convert depth to pressure
-    !total=water+atmosphere [dbar]
+    !convert depth to pressure: total=water+atmosphere [dbar]
     pressure = depth+10._rk
     pressure(int(standard_vars%get_value("ice_water_index")):) = 10._rk
     call fabm_link_bulk_data(fabm_model,pres_id,pressure)
@@ -265,7 +254,30 @@ contains
     !wind speed
     ws_id   = fabm_model%get_horizontal_variable_id(&
               standard_variables%wind_speed)
-    call fabm_link_horizontal_data(fabm_model,ws_id,5._rk)
+    call fabm_link_horizontal_data(fabm_model,ws_id,_WIND_SPEED_)
+    !carbon dioxide in air
+    call fabm_link_horizontal_data(fabm_model,&
+         standard_variables%mole_fraction_of_carbon_dioxide_in_air,&
+         _AIR_CO2_)
+#if _PURE_ERSEM_ == 1
+    !yearday - ersem zenith_angle
+    id_yearday = fabm_model%get_scalar_variable_id(&
+      standard_variables%number_of_days_since_start_of_the_year)
+    call fabm_model%link_scalar(id_yearday,realday)
+    !surface shortwave flux
+    ssf_id  = fabm_model%get_horizontal_variable_id(&
+              standard_variables%surface_downwelling_shortwave_flux)
+    call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
+    !absorption of silt - ersem light
+    aos = type_bulk_standard_variable(name="absorption_of_silt",units="1")
+    allocate(aos_value(number_of_layers))
+    aos_value(:water_sediments_index-1) = 4.e-5_rk
+    call fabm_link_bulk_data(fabm_model,aos,aos_value)
+    !cell thickness
+    h_id    = fabm_model%get_bulk_variable_id(&
+              standard_variables%cell_thickness)
+    allocate(cell(number_of_layers))
+    call fabm_link_bulk_data(fabm_model,h_id,cell)
     !bottom stress - ersem - is needed by do_bottom
     taub_id = fabm_model%get_horizontal_variable_id(&
               standard_variables%bottom_stress)
@@ -277,10 +289,21 @@ contains
                 standard_variables%bottom_depth_below_geoid)
     bdepth = depth(1)
     call fabm_link_horizontal_data(fabm_model,bdepth_id,bdepth)
-    !carbon dioxide in air
-    call fabm_link_horizontal_data(fabm_model,&
-         standard_variables%mole_fraction_of_carbon_dioxide_in_air,&
-         380._rk)
+#endif
+#if _PURE_MAECS_ == 1
+    id_yearday = fabm_model%get_scalar_variable_id(&
+      standard_variables%number_of_days_since_start_of_the_year)
+    call fabm_model%link_scalar(id_yearday,realday)
+    bdepth_id = fabm_model%get_horizontal_variable_id(&
+                standard_variables%bottom_depth)
+    bdepth = depth(1)
+    call fabm_link_horizontal_data(fabm_model,bdepth_id,bdepth)
+    !cell thickness
+    h_id    = fabm_model%get_bulk_variable_id(&
+              standard_variables%cell_thickness)
+    allocate(cell(number_of_layers))
+    call fabm_link_bulk_data(fabm_model,h_id,cell)
+#endif
 
     !check all needed by fabm model variables
     call fabm_check_ready(fabm_model)
@@ -430,14 +453,14 @@ contains
     day = standard_vars%first_day()
     call initial_date(day,year)
     !first day cycle
-    call first_day_circle(100,ice_water_index,&
-                          water_bbl_index,bbl_sediments_index,&
-                          indices,indices_faces,day)
-    !cycle first year 10 times
+    !call first_day_circle(100,ice_water_index,&
+    !                      water_bbl_index,bbl_sediments_index,&
+    !                      indices,indices_faces,day)
+    !cycle first year
     call first_year_circle(day,year,ice_water_index,&
                            water_bbl_index,bbl_sediments_index,&
                            indices,indices_faces)
-
+    !initialize output
     netcdf_ice = type_output(fabm_model,standard_vars,_FILE_NAME_ICE_,&
                              ice_water_index,number_of_layers,&
                              number_of_layers)
@@ -449,29 +472,15 @@ contains
                                    number_of_layers)
     do i = 1,number_of_days
       call date(day,year)
-      !ice   = standard_vars%get_value(_ICE_THICKNESS_,i)
-      !porosity = standard_vars%get_column("porosity",i)
-
       !for netcdf output
       depth = standard_vars%get_column("middle_layer_depths",i)
       allocate(depth_faces,source=&
                standard_vars%get_column(_DEPTH_ON_BOUNDARY_,i))
-
       !change surface index due to ice depth
       !index for boundaries so for layers it should be -1
       surface_index = air_ice_indexes(i)
       call fabm_model%set_surface_index(surface_index-1)
-
       !update links
-#if _PURE_ERSEM_ == 1
-        realday = day !to convert integer to real - ersem zenith_angle
-        ssf = surface_radiative_flux(_LATITUDE_,day)
-        call fabm_model%link_scalar(id_yearday,realday)
-        call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
-#endif
-      !cell thickness - ersem
-      cell = standard_vars%get_column("layer_thicknesses",i)
-      call fabm_link_bulk_data(fabm_model,h_id,cell)
       !temperature
       temp  = standard_vars%get_column(_TEMPERATURE_,i)
       call fabm_link_bulk_data(fabm_model,temp_id,temp)
@@ -481,17 +490,32 @@ contains
       !density
       density = standard_vars%get_column(_RHO_,i)+1000._rk
       call fabm_link_bulk_data(fabm_model,rho_id,density)
-#if _PURE_ERSEM_ == 0     
-        !par
-        call calculate_radiative_flux(&
-          surface_radiative_flux(_LATITUDE_,day),&
-          standard_vars%get_value(_SNOW_THICKNESS_,i),&
-          standard_vars%get_value(_ICE_THICKNESS_ ,i))
-        call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
-#endif      
+#if _PURE_ERSEM_ == 1
+      realday = day !to convert integer to real - ersem zenith_angle
+      call fabm_model%link_scalar(id_yearday,realday)
+      ssf = surface_radiative_flux(_LATITUDE_,day)
+      call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
+      !cell thickness - ersem
+      cell = standard_vars%get_column("layer_thicknesses",i)
+      call fabm_link_bulk_data(fabm_model,h_id,cell)
       !bottom stress - ersem
       !call fabm_link_horizontal_data(fabm_model,taub_id,taub)
-
+#endif
+#if _PURE_MAECS_ == 1
+      realday = day !to convert integer to real
+      call fabm_model%link_scalar(id_yearday,realday)
+      !cell thickness
+      cell = standard_vars%get_column("layer_thicknesses",i)
+      call fabm_link_bulk_data(fabm_model,h_id,cell)
+#endif
+#if _PURE_ERSEM_ == 0 .and. _PURE_MAECS_ == 0 
+      !par
+      call calculate_radiative_flux(&
+        surface_radiative_flux(_LATITUDE_,day),&
+        standard_vars%get_value(_SNOW_THICKNESS_,i),&
+        standard_vars%get_value(_ICE_THICKNESS_ ,i))
+      call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
+#endif      
       call cpu_time(t1)
       call day_circle(i,surface_index,day)
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
@@ -574,15 +598,15 @@ contains
     !for netcdf output
     depth = standard_vars%get_column("middle_layer_depths",1)
     !update links
-#if _PURE_ERSEM_ == 1
       realday = day !to convert integer to real - ersem zenith_angle
-      ssf = surface_radiative_flux(_LATITUDE_,day)
       call fabm_model%link_scalar(id_yearday,realday)
+#if _PURE_ERSEM_ == 1
+      ssf = surface_radiative_flux(_LATITUDE_,day)
       call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
+      !cell thickness - ersem
+      cell = standard_vars%get_column("layer_thicknesses",1)
+      call fabm_link_bulk_data(fabm_model,h_id,cell)
 #endif
-    !cell thickness - ersem
-    cell = standard_vars%get_column("layer_thicknesses",1)
-    call fabm_link_bulk_data(fabm_model,h_id,cell)
     !temperature
     temp  = standard_vars%get_column(_TEMPERATURE_,1)
     call fabm_link_bulk_data(fabm_model,temp_id,temp)
@@ -652,7 +676,7 @@ contains
              standard_vars%get_column("air_ice_indexes"))
     day = inday; year = inyear;
     days_in_year = 365+merge(1,0,(mod(year,4).eq.0))
-    counter = days_in_year*10
+    counter = days_in_year*_RE_YEAR_
 
     netcdf_ice = type_output(fabm_model,standard_vars,'ice_year.nc',&
                          ice_water_index,number_of_layers,&
@@ -685,15 +709,6 @@ contains
       call fabm_model%set_surface_index(surface_index-1)
       
       !update links
-#if _PURE_ERSEM_ == 1
-        realday = day !to convert integer to real - ersem zenith_angle
-        ssf = surface_radiative_flux(_LATITUDE_,day)
-        call fabm_model%link_scalar(id_yearday,realday)
-        call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
-#endif
-      !cell thickness - ersem
-      cell = standard_vars%get_column("layer_thicknesses",pseudo_day)
-      call fabm_link_bulk_data(fabm_model,h_id,cell)
       !temperature
       temp  = standard_vars%get_column(_TEMPERATURE_,pseudo_day)
       call fabm_link_bulk_data(fabm_model,temp_id,temp)
@@ -703,16 +718,32 @@ contains
       !density
       density = standard_vars%get_column(_RHO_,pseudo_day)+1000._rk
       call fabm_link_bulk_data(fabm_model,rho_id,density)
-#if _PURE_ERSEM_ == 0   
-        !par
-        call calculate_radiative_flux(&
-          surface_radiative_flux(_LATITUDE_,day),&
-          standard_vars%get_value(_SNOW_THICKNESS_,pseudo_day),&
-          standard_vars%get_value(_ICE_THICKNESS_ ,pseudo_day))
-        call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
-#endif      
+#if _PURE_ERSEM_ == 1
+      realday = day !to convert integer to real - ersem zenith_angle
+      call fabm_model%link_scalar(id_yearday,realday)
+      ssf = surface_radiative_flux(_LATITUDE_,day)
+      call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
+      !cell thickness - ersem
+      cell = standard_vars%get_column("layer_thicknesses",pseudo_day)
+      call fabm_link_bulk_data(fabm_model,h_id,cell)  
       !bottom stress - ersem
       !call fabm_link_horizontal_data(fabm_model,taub_id,taub)
+#endif
+#if _PURE_MAECS_ == 1
+      realday = day !to convert integer to real
+      call fabm_model%link_scalar(id_yearday,realday)
+      !cell thickness
+      cell = standard_vars%get_column("layer_thicknesses",i)
+      call fabm_link_bulk_data(fabm_model,h_id,cell)
+#endif
+#if _PURE_ERSEM_ == 0 .and. _PURE_MAECS_ == 0 
+      !par
+      call calculate_radiative_flux(&
+        surface_radiative_flux(_LATITUDE_,day),&
+        standard_vars%get_value(_SNOW_THICKNESS_,i),&
+        standard_vars%get_value(_ICE_THICKNESS_ ,i))
+      call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
+#endif
 
       call day_circle(pseudo_day,surface_index,day)
 
@@ -1536,7 +1567,7 @@ contains
     integer number_of_vars
     integer i
 
-    if (trim(inname) == "none") then
+    if (inname(1:4) == "none") then
       !write(*,*) inname, "wasn't found, skipping"
       return
     end if

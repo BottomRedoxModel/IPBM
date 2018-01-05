@@ -1,9 +1,15 @@
-#define _PURE_ERSEM_ 0
+#define _PURE_ERSEM_ 1
+#define _PURE_MAECS_ 0
 
 #define _LINE_      write(*,*) repeat('*',79)
 #define _PAUSE_     read(*,*)
 
+#define _IPBM_FILE_NAME_ 'ipbm_ersem.yaml'
+
+#define _RE_YEAR_					10
 #define _SECONDS_PER_CIRCLE_        300
+#define _WIND_SPEED_				5._rk
+#define _AIR_CO2_					380._rk
 
 !horizontal flux rate
 #define _HMIX_RATE_					0.00333_rk

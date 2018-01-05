@@ -10,6 +10,8 @@
 ! Original author(s): Shamil Yakubov
 !-----------------------------------------------------------------------
 
+#include "../include/ipbm.h"
+
 module yaml_mod
   use fabm_driver
   use fabm_types,only: rk
@@ -51,7 +53,7 @@ contains
     character(len=yaml_error_length) :: yaml_error
     character(len=256)               :: path_eff
 
-    path_eff = 'ipbm.yaml'
+    path_eff = _IPBM_FILE_NAME_
     ! Parse YAML file.
     node => yaml_parse(trim(path_eff),1,yaml_error)
     if (yaml_error/='') call fatal_error('read ipbm configuration: ',trim(yaml_error))
