@@ -82,6 +82,7 @@ contains
     kara_input = type_input(_FILE_NAME_)
     !horizontal variables
     call self%add_var(kara_input,_OCEAN_TIME_)
+    call self%add_var(kara_input,_SHORTWAVE_RADIATION_)
     call self%add_day_number("day_number")
     !ice variables
     call self%add_ice_thickness(kara_input)

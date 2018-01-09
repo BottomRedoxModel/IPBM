@@ -1,12 +1,13 @@
-#define _PURE_ERSEM_ 1
+#define _PURE_ERSEM_ 0
 #define _PURE_MAECS_ 0
 
 #define _LINE_      write(*,*) repeat('*',79)
 #define _PAUSE_     read(*,*)
 
-#define _IPBM_FILE_NAME_ 'ipbm_ersem.yaml'
+#define _IPBM_FILE_NAME_ 'ipbm_brom_ersem.yaml'
 
-#define _RE_YEAR_					10
+#define _RE_DAY_					400
+#define _RE_YEAR_					2
 #define _SECONDS_PER_CIRCLE_        300
 #define _WIND_SPEED_				5._rk
 #define _AIR_CO2_					380._rk
@@ -26,6 +27,7 @@
 #define _ICE_THICKNESS_             get_ipbm_string_parameter('ice_thickness')
 #define _SNOW_THICKNESS_            get_ipbm_string_parameter('snow_thickness')
 #define _ICE_SURFACE_TEMPERATURE_   get_ipbm_string_parameter('ice_surface_temperature')
+#define _SHORTWAVE_RADIATION_       get_ipbm_string_parameter('shortwave_radiation')
 
 #define _FILE_NAME_ICE_             'ice.nc'
 #define _FILE_NAME_WATER_           'water.nc'
