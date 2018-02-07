@@ -8,7 +8,6 @@
 #define _ICE_SCATTERED_    0.97_rk
 #define _ICE_EXTINCTION_   0.93_rk
 #define _SNOW_EXTINCTION_  4.3_rk
-#define _ERLOV_            0.05_rk
 !-Factor to convert downwelling shortwave in air to scalar PAR in water(default = 0.5)
 !-Radiative transfer models suggest an average value ~0.5 but with ~10 % variability
 !-at mid / high latitudes depending on season, latitude, and wind speed

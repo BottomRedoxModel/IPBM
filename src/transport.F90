@@ -451,11 +451,13 @@ contains
     !first day cycle
     call first_day_circle(_RE_DAY_,ice_water_index,&
                           water_bbl_index,bbl_sediments_index,&
-                          indices,indices_faces,day)
-    !cycle first year
+                          indices,indices_faces,day,&
+                          surface_radiation)
+    !!cycle first year
     call first_year_circle(day,year,ice_water_index,&
                            water_bbl_index,bbl_sediments_index,&
-                           indices,indices_faces)
+                           indices,indices_faces,&
+                           surface_radiation)
     !initialize output
     netcdf_ice = type_output(fabm_model,standard_vars,_FILE_NAME_ICE_,&
                              ice_water_index,number_of_layers,&
@@ -504,7 +506,7 @@ contains
 #if _PURE_ERSEM_ == 0 .and. _PURE_MAECS_ == 0 
       !par
       call calculate_radiative_flux(&
-        surface_radiation(day),&
+        surface_radiation(i),&
         standard_vars%get_value(_SNOW_THICKNESS_,i),&
         standard_vars%get_value(_ICE_THICKNESS_ ,i))
       call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
@@ -552,7 +554,8 @@ contains
   !
   subroutine first_day_circle(counter,ice_water_index,&
                               water_bbl_index,bbl_sediments_index,&
-                              indices,indices_faces,day)
+                              indices,indices_faces,day,&
+                              surface_radiation)
     use output_mod
 
     integer,intent(in):: counter
@@ -561,6 +564,7 @@ contains
     real(rk),allocatable,intent(in):: indices(:)
     real(rk),allocatable,intent(in):: indices_faces(:)
     integer,intent(in):: day
+    real(rk),dimension(:),intent(in):: surface_radiation
 
     type(type_output):: netcdf_ice
     type(type_output):: netcdf_water
@@ -618,9 +622,9 @@ contains
 #if _PURE_ERSEM_ == 0 .and. _PURE_MAECS_ == 0 
     !par
     call calculate_radiative_flux(&
-      surface_radiative_flux(_LATITUDE_,day),&
-      standard_vars%get_value(_SNOW_THICKNESS_,i),&
-      standard_vars%get_value(_ICE_THICKNESS_ ,i))
+      surface_radiation(1),&
+      standard_vars%get_value(_SNOW_THICKNESS_,1),&
+      standard_vars%get_value(_ICE_THICKNESS_ ,1))
     call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif  
     !
@@ -652,7 +656,8 @@ contains
   !
   subroutine first_year_circle(inday,inyear,ice_water_index,&
                                water_bbl_index,bbl_sediments_index,&
-                               indices,indices_faces)
+                               indices,indices_faces,&
+                               surface_radiation)
     use output_mod
 
     integer,intent(in):: inday,inyear
@@ -660,6 +665,7 @@ contains
     integer,intent(in):: bbl_sediments_index
     real(rk),allocatable,intent(in):: indices(:)
     real(rk),allocatable,intent(in):: indices_faces(:)
+    real(rk),dimension(:),intent(in):: surface_radiation
 
     type(type_output):: netcdf_ice
     type(type_output):: netcdf_water
@@ -735,9 +741,9 @@ contains
 #if _PURE_ERSEM_ == 0 .and. _PURE_MAECS_ == 0 
       !par
       call calculate_radiative_flux(&
-        surface_radiative_flux(_LATITUDE_,day),&
-        standard_vars%get_value(_SNOW_THICKNESS_,i),&
-        standard_vars%get_value(_ICE_THICKNESS_ ,i))
+        surface_radiation(pseudo_day),&
+        standard_vars%get_value(_SNOW_THICKNESS_,pseudo_day),&
+        standard_vars%get_value(_ICE_THICKNESS_ ,pseudo_day))
       call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif
 
@@ -825,22 +831,26 @@ contains
     real(rk),intent(in):: surface_flux
     real(rk),intent(in):: snow_thick
     real(rk),intent(in):: ice_thick
-    integer  ice_water_index
+    integer  ice_water_index, bbl_sediments_index
     real(rk) par_alb,par_scat
     real(rk),allocatable:: ice_depths(:)
+    real(rk) :: extinction(number_of_layers)
+    
+    call fabm_get_light_extinction(fabm_model,1,number_of_layers,extinction)
 
     ice_water_index = standard_vars%get_value("ice_water_index")
+    bbl_sediments_index = standard_vars%get_value ("bbl_sediments_index")
     !ice_column
     !Grenfell and Maykutt 1977 indicate that the magnitude and shape
     !of the albedo curves depend strongly on the amount of liquid
     !water present in the upper part of the ice, so it fluctuates
     !throught year (true also for extinction coefficient)
-    !if (snow_thick <= 0.005) then
+    if (snow_thick <= 0.005) then
       par_alb = surface_flux*(1._rk-_ICE_ALBEDO_)
-    !else
-    !  par_alb = surface_flux*(1._rk-_SNOW_ALBEDO_)*&
-    !            exp(-_SNOW_EXTINCTION_*snow_thick)
-    !end if
+    else
+      par_alb = surface_flux*(1._rk-_SNOW_ALBEDO_)*&
+                exp(-_SNOW_EXTINCTION_*snow_thick)
+    end if
     !after scattered surface of ice
     par_scat = par_alb*_ICE_SCATTERED_
     allocate(ice_depths,source=ice_thick-depth(ice_water_index:))
@@ -849,12 +859,15 @@ contains
     !water column calculations
     if (ice_thick==0._rk) then
       radiative_flux(:ice_water_index-1) = &
-        surface_flux*exp(-_ERLOV_*depth(:ice_water_index-1))
+        surface_flux*exp(-extinction(:ice_water_index-1) &
+                         *depth(:ice_water_index-1))
     else
       radiative_flux(:ice_water_index-1) = &
         radiative_flux(ice_water_index)*&
-        exp(-_ERLOV_*depth(:ice_water_index-1))
+        exp(-extinction(:ice_water_index-1) &
+            *depth(:ice_water_index-1))
     end if
+    radiative_flux(:bbl_sediments_index-1) = 0._rk
   end subroutine
   !
   !calculate iterations within a day
