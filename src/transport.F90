@@ -40,6 +40,8 @@ module transport
   real(rk),allocatable,dimension(:),target:: salt
   real(rk),allocatable,dimension(:),target:: pressure
   real(rk),allocatable,dimension(:),target:: radiative_flux
+  !for the ERSEM carbonate
+  real(rk),allocatable,dimension(:),target:: density
   !bcc and scc - arrays for bottom and surface fabm variables
   real(rk),allocatable,dimension(:),target:: bcc,scc
   !variables for model
@@ -49,11 +51,12 @@ module transport
   type(type_model) fabm_model
   type(type_bulk_variable_id)      ,save:: h_id,temp_id,salt_id
   type(type_bulk_variable_id)      ,save:: pres_id,par_id
+  !for the ERSEM carbonate
+  type(type_bulk_variable_id)      ,save:: rho_id
   type(type_horizontal_variable_id),save:: lon_id,lat_id,ws_id
 #if _PURE_ERSEM_ == 1
   !bdepth - bottom depth
   real(rk)                         ,target:: bdepth
-  real(rk),allocatable,dimension(:),target:: density
   !taub - bottom stress
   real(rk),allocatable             ,target:: taub
   real(rk)                         ,target:: realday
@@ -65,7 +68,6 @@ module transport
   !absorption_of_silt - ersem light
   type(type_bulk_standard_variable)  ,save:: aos
   type(type_horizontal_variable_id)  ,save:: taub_id,bdepth_id
-  type(type_bulk_variable_id)        ,save:: rho_id
 #endif
 #if _PURE_MAECS_ == 1
   !bdepth - bottom depth
@@ -258,15 +260,15 @@ contains
     call fabm_link_horizontal_data(fabm_model,&
          standard_variables%mole_fraction_of_carbon_dioxide_in_air,&
          _AIR_CO2_)
+    !density - for the ERSEM carbonate
+    rho_id  = fabm_model%get_bulk_variable_id(standard_variables%density)
+    allocate(density(number_of_layers))
+    call fabm_link_bulk_data(fabm_model,rho_id,density)
 #if _PURE_ERSEM_ == 1
     !yearday - ersem zenith_angle
     id_yearday = fabm_model%get_scalar_variable_id(&
       standard_variables%number_of_days_since_start_of_the_year)
     call fabm_model%link_scalar(id_yearday,realday)
-    !density anomaly
-    rho_id  = fabm_model%get_bulk_variable_id(standard_variables%density)
-    allocate(density(number_of_layers))
-    call fabm_link_bulk_data(fabm_model,rho_id,density)
     !surface shortwave flux
     ssf_id  = fabm_model%get_horizontal_variable_id(&
               standard_variables%surface_downwelling_shortwave_flux)
@@ -488,14 +490,14 @@ contains
       !salinity
       salt  = standard_vars%get_column(_SALINITY_,i)
       call fabm_link_bulk_data(fabm_model,salt_id,salt)
+      !density - for the ERSEM carbonate
+      density = standard_vars%get_column(_RHO_,i)+1000._rk
+      call fabm_link_bulk_data(fabm_model,rho_id,density)
 #if _PURE_ERSEM_ == 1
       realday = day !to convert integer to real - ersem zenith_angle
       call fabm_model%link_scalar(id_yearday,realday)
       ssf = surface_radiative_flux(_LATITUDE_,day)
       call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
-      !density
-      density = standard_vars%get_column(_RHO_,i)+1000._rk
-      call fabm_link_bulk_data(fabm_model,rho_id,density)
       !bottom stress - ersem
       !call fabm_link_horizontal_data(fabm_model,taub_id,taub)
 #endif
@@ -604,14 +606,14 @@ contains
     !salinity
     salt  = standard_vars%get_column(_SALINITY_,1)
     call fabm_link_bulk_data(fabm_model,salt_id,salt)
+    !density - for the ERSEM carbonate
+    density = standard_vars%get_column(_RHO_,1)+1000._rk
+    call fabm_link_bulk_data(fabm_model,rho_id,density)
 #if _PURE_ERSEM_ == 1
     realday = day !to convert integer to real - ersem zenith_angle
     call fabm_model%link_scalar(id_yearday,realday)
     ssf = surface_radiative_flux(_LATITUDE_,day)
     call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
-    !density
-    density = standard_vars%get_column(_RHO_,1)+1000._rk
-    call fabm_link_bulk_data(fabm_model,rho_id,density)
     !bottom stress - ersem
     !call fabm_link_horizontal_data(fabm_model,taub_id,taub)
 #endif
@@ -723,14 +725,14 @@ contains
       !salinity
       salt  = standard_vars%get_column(_SALINITY_,pseudo_day)
       call fabm_link_bulk_data(fabm_model,salt_id,salt)
+      !density - for the ERSEM carbonate
+      density = standard_vars%get_column(_RHO_,pseudo_day)+1000._rk
+      call fabm_link_bulk_data(fabm_model,rho_id,density)
 #if _PURE_ERSEM_ == 1
       realday = day !to convert integer to real - ersem zenith_angle
       call fabm_model%link_scalar(id_yearday,realday)
       ssf = surface_radiative_flux(_LATITUDE_,day)
       call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
-      !density
-      density = standard_vars%get_column(_RHO_,pseudo_day)+1000._rk
-      call fabm_link_bulk_data(fabm_model,rho_id,density)
       !bottom stress - ersem
       !call fabm_link_horizontal_data(fabm_model,taub_id,taub)
 #endif
