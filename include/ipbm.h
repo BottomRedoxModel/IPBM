@@ -1,5 +1,6 @@
 #define _PURE_ERSEM_ 0
 #define _PURE_MAECS_ 0
+#define _IS_SHORTWAVE_RADIATION_IS_PAR_ 1
 
 #define _LINE_      write(*,*) repeat('*',79)
 #define _PAUSE_     read(*,*)
@@ -32,6 +33,10 @@
 #define _FILE_NAME_ICE_             'ice.nc'
 #define _FILE_NAME_WATER_           'water.nc'
 #define _FILE_NAME_SEDIMENTS_       'sediments.nc'
+
+#define _BACKGROUND_ATTENUATION_    get_ipbm_real_parameter('background_attenuation')
+#define _SILT_ATTENUATION_          get_ipbm_real_parameter('silt_attenuation')
+#define _SILT_CONCENTRATION_        get_ipbm_real_parameter('silt_concentration')
 
 #define _LONGITUDE_                 get_ipbm_real_parameter('longitude')
 #define _LATITUDE_                  get_ipbm_real_parameter('latitude')

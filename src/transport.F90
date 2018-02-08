@@ -830,16 +830,21 @@ contains
   !calculates PAR in the ice and water columns
   !
   subroutine calculate_radiative_flux(surface_flux,snow_thick,ice_thick)
+    !contains module variables:
+    !radiative_flux, cell
+    !supposed to be a PAR [mol photons m-2 day-1]
     real(rk),intent(in):: surface_flux
-    real(rk),intent(in):: snow_thick
-    real(rk),intent(in):: ice_thick
-    integer  ice_water_index, bbl_sediments_index
-    real(rk) par_alb,par_scat
+    real(rk),intent(in):: snow_thick ![m]
+    real(rk),intent(in):: ice_thick  ![m]
+    !locals
+    integer i
+    integer ice_water_index, bbl_sediments_index
+    real(rk) buffer, cell_extinction, extfac
+    real(rk) par_alb !PAR after albedo removing
+    real(rk) par_scat !PAR after scatter removing
     real(rk),allocatable:: ice_depths(:)
     real(rk) :: extinction(number_of_layers)
-    
-    call fabm_get_light_extinction(fabm_model,1,number_of_layers,extinction)
-
+    !
     ice_water_index = standard_vars%get_value("ice_water_index")
     bbl_sediments_index = standard_vars%get_value ("bbl_sediments_index")
     !ice_column
@@ -860,16 +865,28 @@ contains
       par_scat*exp(-_ICE_EXTINCTION_*ice_depths)
     !water column calculations
     if (ice_thick==0._rk) then
-      radiative_flux(:ice_water_index-1) = &
-        surface_flux*exp(-extinction(:ice_water_index-1) &
-                         *depth(:ice_water_index-1))
+      buffer = surface_flux
     else
-      radiative_flux(:ice_water_index-1) = &
-        radiative_flux(ice_water_index)*&
-        exp(-extinction(:ice_water_index-1) &
-            *depth(:ice_water_index-1))
+      buffer = radiative_flux(ice_water_index)
     end if
+    !getting extinction coefficient from FABM
+    call fabm_get_light_extinction(fabm_model,1,number_of_layers,extinction)
+    extinction = extinction+_BACKGROUND_ATTENUATION_+ &
+                            _SILT_ATTENUATION_* &
+                            _SILT_CONCENTRATION_
+    do i = ice_water_index-1, bbl_sediments_index, -1
+      !extinction over layer i with thickness cell(i)
+      cell_extinction = extinction(i)*cell(i)
+      !extinction factor due to layer i (0<extfac<1)
+      extfac = exp(-cell_extinction)
+      radiative_flux(i) = buffer/cell_extinction*(1.0_rk-extfac)
+      buffer = buffer*extfac
+    end do
     radiative_flux(:bbl_sediments_index-1) = 0._rk
+    !in the cases when surf flux isn't PAR
+    if (_IS_SHORTWAVE_RADIATION_IS_PAR_ == 0) then
+      radiative_flux = _PAR_PART_*radiative_flux
+    end if
   end subroutine
   !
   !calculate iterations within a day
