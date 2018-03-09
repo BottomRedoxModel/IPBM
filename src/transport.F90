@@ -150,7 +150,12 @@ contains
     !getting ice algae parameters ids
     k = 0
     do i = 1,number_of_parameters
-      if (i == find_index_of_state_variable(trim(_Phy_)).or.&
+      if (&!i == find_index_of_state_variable(trim(_Phy_)).or.&
+          i == find_index_of_state_variable(trim(_iDiatoms_)//"_c").or.&
+          i == find_index_of_state_variable(trim(_iDiatoms_)//"_n").or.&
+          i == find_index_of_state_variable(trim(_iDiatoms_)//"_p").or.&
+          i == find_index_of_state_variable(trim(_iDiatoms_)//"_s").or.&
+          i == find_index_of_state_variable(trim(_iDiatoms_)//"_Chl").or.&
           i == find_index_of_state_variable(trim(_Diatoms_)//"_c").or.&
           i == find_index_of_state_variable(trim(_Diatoms_)//"_n").or.&
           i == find_index_of_state_variable(trim(_Diatoms_)//"_p").or.&
@@ -164,12 +169,17 @@ contains
       allocate(ice_algae_ids(k))
       k = 1
       do i = 1,number_of_parameters
-        if (i == find_index_of_state_variable(trim(_Phy_)).or.&
-            i == find_index_of_state_variable(trim(_Diatoms_)//"_c").or.&
-            i == find_index_of_state_variable(trim(_Diatoms_)//"_n").or.&
-            i == find_index_of_state_variable(trim(_Diatoms_)//"_p").or.&
-            i == find_index_of_state_variable(trim(_Diatoms_)//"_s").or.&
-            i == find_index_of_state_variable(trim(_Diatoms_)//"_Chl")&
+        if (&!i == find_index_of_state_variable(trim(_Phy_)).or.&
+          i == find_index_of_state_variable(trim(_iDiatoms_)//"_c").or.&
+          i == find_index_of_state_variable(trim(_iDiatoms_)//"_n").or.&
+          i == find_index_of_state_variable(trim(_iDiatoms_)//"_p").or.&
+          i == find_index_of_state_variable(trim(_iDiatoms_)//"_s").or.&
+          i == find_index_of_state_variable(trim(_iDiatoms_)//"_Chl").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_c").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_n").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_p").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_s").or.&
+          i == find_index_of_state_variable(trim(_Diatoms_)//"_Chl")&
             ) then
             ice_algae_ids(k) = i
             k = k + 1
@@ -361,6 +371,17 @@ contains
         is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
       call find_set_state_variable(trim(_LargePOM_) // "_s",&
         is_solid = .true.,density = 1.5E7_rk*1._rk/1000._rk)
+      !diatoms_ice
+      call find_set_state_variable(trim(_iDiatoms_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
+      call find_set_state_variable(trim(_iDiatoms_) // "_n",&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(trim(_iDiatoms_) // "_p",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
+      call find_set_state_variable(trim(_iDiatoms_) // "_s",&
+        is_solid = .true.,density = 1.5E7_rk*6.2_rk/15.7_rk)
+      call find_set_state_variable(trim(_iDiatoms_) // "_Chl",&
+        is_solid = .true.,density = 1.2E7_rk)
       !diatoms
       call find_set_state_variable(trim(_Diatoms_) // "_c",&
         is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
@@ -380,7 +401,7 @@ contains
       call find_set_state_variable(trim(_NanoPhy_) // "_p",&
         is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
       call find_set_state_variable(trim(_NanoPhy_) // "_Chl",&
-        is_solid = .true.,density = 1.2E7_rk)!1200e6 from wiki
+        is_solid = .true.,density = 1.2E7_rk)
       !picophytoplankton
       call find_set_state_variable(trim(_PicoPhy_) // "_c",&
         is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
@@ -389,7 +410,7 @@ contains
       call find_set_state_variable(trim(_PicoPhy_) // "_p",&
         is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
       call find_set_state_variable(trim(_PicoPhy_) // "_Chl",&
-        is_solid = .true.,density = 1.2E7_rk)!1200e6 from wiki
+        is_solid = .true.,density = 1.2E7_rk)
       !microphytoplankton
       call find_set_state_variable(trim(_MicroPhy_) // "_c",&
         is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
@@ -398,14 +419,24 @@ contains
       call find_set_state_variable(trim(_MicroPhy_) // "_p",&
         is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
       call find_set_state_variable(trim(_MicroPhy_) // "_Chl",&
-        is_solid = .true.,density = 1.2E7_rk)!1200e6 from wiki
+        is_solid = .true.,density = 1.2E7_rk)
+      !mesozooplankton
+      call find_set_state_variable(trim(_MesoZoo_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
       !microzooplankton
-      !call find_set_state_variable("Z5_c",&
-      !  is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
-      !call find_set_state_variable("Z5_n",&
-      !  is_solid = .true.,density = 1.5E7_rk)
-      !call find_set_state_variable("Z5_p",&
-      !  is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
+      call find_set_state_variable(trim(_MicroZoo_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
+      call find_set_state_variable(trim(_MicroZoo_) // "_n",&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(trim(_MicroZoo_) // "_p",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
+      !nanoflagellates
+      call find_set_state_variable(trim(_NanoFlag_) // "_c",&
+        is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
+      call find_set_state_variable(trim(_NanoFlag_) // "_n",&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(trim(_NanoFlag_) // "_p",&
+        is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
       !read (*,*)
     end subroutine
   end subroutine
@@ -1150,6 +1181,10 @@ contains
     do i = 1,number_of_parameters
       kz_tot(:,i) = brine_flux+kz_ice_gravity+&
                     kz_turb+kz_mol+kz_bio*O2stat
+      if (any(ice_algae_ids==i)) then
+        kz_tot(ice_water_index+1:surface_index-1,i) = 0._rk
+        kz_tot(ice_water_index,i) = 0._rk
+      end if
     end do
 
     !calculate surface fluxes only for ice free periods
@@ -1440,7 +1475,8 @@ contains
       !special vertical sedimentation for diatoms in the ice
       if (any(ice_algae_ids==ip)) then
         !set velocity 3 cm/day
-        wti(ice_water_index+1:surface_index-1,ip) = -0.03_rk/86400._rk
+        where (face_porosity(ice_water_index+1:surface_index-1) > 0.05_rk) &
+          wti(ice_water_index+1:surface_index-1,ip) = -0.03_rk/86400._rk
         wti(ice_water_index,ip) = 0._rk
       end if
     end do
@@ -1510,7 +1546,8 @@ contains
       if (ice_growth<0) then
         ice_growth = abs(ice_growth)
         if (any(ice_algae_ids==j)&
-            .and.air_ice_indexes(id)/=ice_water_index) then
+            .and. air_ice_indexes(id)/=ice_water_index) then
+        !if (air_ice_indexes(id)/=ice_water_index) then
           do i=1,ice_growth
             state_vars(j)%value(ice_water_index) =&
               state_vars(j)%value(ice_water_index)+&
@@ -1537,6 +1574,13 @@ contains
         end do
       !freezing
       else if (ice_growth>0) then
+        !if (any(ice_algae_ids==j)) then
+        !  do i=int(air_ice_indexes(id)-1),&
+        !       int(air_ice_indexes(id))-ice_growth,-1
+        !    state_vars(j)%value(i)=1.e-6_rk
+        !  end do
+        !  cycle
+        !end if
         do i=int(air_ice_indexes(id)-1),ice_water_index+ice_growth,-1
           state_vars(j)%value(i)=state_vars(j)%value(i-ice_growth)
         end do
@@ -1630,11 +1674,11 @@ contains
         call do_relaxation(2000._rk,ice_water_index-1,i)
         call do_relaxation(2350._rk,bbl_sed_index,i)
       else if (state_vars(i)%name.eq._PO4_) then
-        call do_relaxation(sinusoidal(day,0.5_rk),ice_water_index-1,i)
+        call do_relaxation(sinusoidal(day,0.8_rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._NO3_) then
-        call do_relaxation(sinusoidal(day,0.5_rk),ice_water_index-1,i)
+        call do_relaxation(sinusoidal(day,0.6_rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._Si_) then
-        call do_relaxation(sinusoidal(day,1.0_rk),ice_water_index-1,i)
+        call do_relaxation(sinusoidal(day,5.0_rk),ice_water_index-1,i)
       end if
     end do
   contains
@@ -1644,7 +1688,7 @@ contains
       real(rk) sinusoidal
 
       sinusoidal = (1._rk+sin(2._rk*_PI_*(&
-                    day-40._rk)/365._rk))*multiplier
+                    day-130._rk)/365._rk))*multiplier
     end function sinusoidal
   end subroutine
   !

@@ -7,8 +7,8 @@
 
 #define _IPBM_FILE_NAME_ 'ipbm.yaml'
 
-#define _RE_DAY_					400
-#define _RE_YEAR_					10
+#define _RE_DAY_					100
+#define _RE_YEAR_					1
 #define _SECONDS_PER_CIRCLE_        300
 #define _WIND_SPEED_				5._rk
 #define _AIR_CO2_					380._rk
@@ -72,7 +72,11 @@
 #define _SmallPOM_                  get_ipbm_string_parameter('SmallPOM')
 #define _MediumPOM_                 get_ipbm_string_parameter('MediumPOM')
 #define _LargePOM_                  get_ipbm_string_parameter('LargePOM')
+#define _iDiatoms_                  get_ipbm_string_parameter('iDiatoms')
 #define _Diatoms_                   get_ipbm_string_parameter('Diatoms')
 #define _NanoPhy_                   get_ipbm_string_parameter('NanoPhy')
 #define _PicoPhy_                   get_ipbm_string_parameter('PicoPhy')
 #define _MicroPhy_                  get_ipbm_string_parameter('MicroPhy')
+#define _MesoZoo_                   get_ipbm_string_parameter('MesoZoo')
+#define _MicroZoo_                  get_ipbm_string_parameter('MicroZoo')
+#define _NanoFlag_                  get_ipbm_string_parameter('NanoFlag')
