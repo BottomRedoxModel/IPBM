@@ -464,7 +464,7 @@ contains
     real(rk),allocatable,dimension(:):: surface_radiation
 
     year = _INITIALIZATION_SINCE_YEAR_
-    
+
     allocate(indices(number_of_layers))
     indices = (/(i,i=number_of_layers,1,-1)/)
     allocate(indices_faces(number_of_layers+1))
@@ -536,14 +536,14 @@ contains
       realday = day !to convert integer to real
       call fabm_model%link_scalar(id_yearday,realday)
 #endif
-#if _PURE_ERSEM_ == 0 .and. _PURE_MAECS_ == 0 
+#if _PURE_ERSEM_ == 0 && _PURE_MAECS_ == 0
       !par
       call calculate_radiative_flux(&
         surface_radiation(i),&
         standard_vars%get_value(_SNOW_THICKNESS_,i),&
         standard_vars%get_value(_ICE_THICKNESS_ ,i))
       call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
-#endif      
+#endif
       call cpu_time(t1)
       call day_circle(i,surface_index,day)
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
@@ -630,7 +630,7 @@ contains
     !update links
     !cell thickness - ersem
     cell = standard_vars%get_column("layer_thicknesses",1)
-    call fabm_link_bulk_data(fabm_model,h_id,cell)  
+    call fabm_link_bulk_data(fabm_model,h_id,cell)
     !temperature
     temp  = standard_vars%get_column(_TEMPERATURE_,1)
     call fabm_link_bulk_data(fabm_model,temp_id,temp)
@@ -652,14 +652,14 @@ contains
     realday = day !to convert integer to real
     call fabm_model%link_scalar(id_yearday,realday)
 #endif
-#if _PURE_ERSEM_ == 0 .and. _PURE_MAECS_ == 0 
+#if _PURE_ERSEM_ == 0 && _PURE_MAECS_ == 0
     !par
     call calculate_radiative_flux(&
       surface_radiation(1),&
       standard_vars%get_value(_SNOW_THICKNESS_,1),&
       standard_vars%get_value(_ICE_THICKNESS_ ,1))
     call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
-#endif  
+#endif
     !
     do i = 1,counter
       call day_circle(1,surface_index,day)
@@ -745,11 +745,11 @@ contains
       !index for boundaries so for layers it should be -1
       surface_index = air_ice_indexes(pseudo_day)
       call fabm_model%set_surface_index(surface_index-1)
-      
+
       !update links
       !cell thickness - ersem
       cell = standard_vars%get_column("layer_thicknesses",pseudo_day)
-      call fabm_link_bulk_data(fabm_model,h_id,cell)  
+      call fabm_link_bulk_data(fabm_model,h_id,cell)
       !temperature
       temp  = standard_vars%get_column(_TEMPERATURE_,pseudo_day)
       call fabm_link_bulk_data(fabm_model,temp_id,temp)
@@ -771,7 +771,7 @@ contains
       realday = day !to convert integer to real
       call fabm_model%link_scalar(id_yearday,realday)
 #endif
-#if _PURE_ERSEM_ == 0 .and. _PURE_MAECS_ == 0 
+#if _PURE_ERSEM_ == 0 && _PURE_MAECS_ == 0
       !par
       call calculate_radiative_flux(&
         surface_radiation(pseudo_day),&
@@ -1181,10 +1181,10 @@ contains
     do i = 1,number_of_parameters
       kz_tot(:,i) = brine_flux+kz_ice_gravity+&
                     kz_turb+kz_mol+kz_bio*O2stat
-      if (any(ice_algae_ids==i)) then
-        kz_tot(ice_water_index+1:surface_index-1,i) = 0._rk
-        kz_tot(ice_water_index,i) = 0._rk
-      end if
+      !if (any(ice_algae_ids==i)) then
+      !  kz_tot(ice_water_index+1:surface_index-1,i) = 0._rk
+      !  kz_tot(ice_water_index,i) = 0._rk
+      !end if
     end do
 
     !calculate surface fluxes only for ice free periods
@@ -1319,7 +1319,7 @@ contains
     !NaN
     D_QNAN = 0._rk
     D_QNAN = D_QNAN / D_QNAN
-    
+
     dcc  = 0.0_rk
     wbi  = 0.0_rk
     wti  = 0.0_rk
@@ -1676,9 +1676,9 @@ contains
       else if (state_vars(i)%name.eq._PO4_) then
         call do_relaxation(sinusoidal(day,0.8_rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._NO3_) then
-        call do_relaxation(sinusoidal(day,0.6_rk),ice_water_index-1,i)
+        call do_relaxation(sinusoidal(day,0.4_rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._Si_) then
-        call do_relaxation(sinusoidal(day,5.0_rk),ice_water_index-1,i)
+        call do_relaxation(sinusoidal(day,10.0_rk),ice_water_index-1,i)
       end if
     end do
   contains
