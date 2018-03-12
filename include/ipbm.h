@@ -30,6 +30,9 @@
 #define _ICE_SURFACE_TEMPERATURE_   get_ipbm_string_parameter('ice_surface_temperature')
 #define _SHORTWAVE_RADIATION_       get_ipbm_string_parameter('shortwave_radiation')
 
+#define _REQUIRED_VOLUME_           get_ipbm_real_parameter('required_volume')
+#define _IALGAE_VELOCITY_           get_ipbm_real_parameter('ice_algae_velocity')
+
 #define _FILE_NAME_ICE_             'ice.nc'
 #define _FILE_NAME_WATER_           'water.nc'
 #define _FILE_NAME_SEDIMENTS_       'sediments.nc'

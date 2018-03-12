@@ -184,7 +184,7 @@ contains
     resolution_bbl = _RESOLUTION_BBL_
     width_sediments = _WIDTH_SEDIMENTS_
     resolution_sediments = _RESOLUTION_SEDIMENTS_
-    
+
     call name_input%get_var(inname,var)
     select type(var)
     class is(variable_1d)
@@ -373,7 +373,7 @@ contains
     integer i,length,time
     integer water_bbl_index,ice_water_index
     character(64):: temperature_name, salinity_name, density_name
-    
+
     temperature_name = trim(_TEMPERATURE_)
     salinity_name = trim(_SALINITY_)
     density_name = trim(_RHO_)
@@ -717,7 +717,7 @@ contains
       !if no ice, go to the next day
       if (air_ice_indexes(i)/=ice_water_index) then
         do j = ice_water_index,air_ice_indexes(i)
-          if (porosity(j,i)>0.072_rk) then
+          if (porosity(j,i)>_REQUIRED_VOLUME_) then
             z_conv = z_conv+_ICE_LAYERS_RESOLUTION_
           else
             exit

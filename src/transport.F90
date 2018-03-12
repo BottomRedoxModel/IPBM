@@ -954,6 +954,8 @@ contains
     real(rk),dimension(surface_index-1,number_of_parameters):: increment
     !increment for diffusion
     real(rk),dimension(surface_index-1,number_of_parameters):: dcc
+    ! in cm / day
+    real(rk):: ice_algae_velocity
 
     bbl_sed_index   = standard_vars%get_value("bbl_sediments_index")
     ice_water_index = standard_vars%get_value("ice_water_index")
@@ -1007,6 +1009,10 @@ contains
       number_of_circles = int(60*60*24/_SECONDS_PER_CIRCLE_)
     end if
     call recalculate_ice(id,brine_release)
+
+    ! in cm / day
+    ice_algae_velocity = _IALGAE_VELOCITY_
+
     do i = 1,number_of_circles
       !
       call relaxation(ice_water_index,bbl_sed_index,day)
@@ -1115,7 +1121,8 @@ contains
                                  face_porosity(:surface_index),&
                                  kz_bio(:surface_index),&
                                  layer_thicknesses(2:surface_index),&
-                                 dz(:surface_index-2))
+                                 dz(:surface_index-2),&
+                                 ice_algae_velocity)
       !call check_array("after_sedimentation",surface_index,id,i)
       call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
     end do
@@ -1277,7 +1284,7 @@ contains
                                    ice_water_index,k_sed1,w_b,u_b,&
                                    dphidz_SWI,increment,&
                                    face_porosity,kz_bio,&
-                                   hz,dz)
+                                   hz,dz,ice_algae_velocity)
     integer ,intent(in):: surface_index
     integer ,intent(in):: bbl_sed_index
     integer ,intent(in):: ice_water_index
@@ -1294,6 +1301,7 @@ contains
     real(rk),intent(in):: hz(surface_index-1)
     ! distance between centers of the layers
     real(rk),intent(in):: dz(surface_index-2)
+    real(rk),intent(in):: ice_algae_velocity
 
     !Local variables
     type(ipbm_state_variable):: oxygen
@@ -1476,7 +1484,8 @@ contains
       if (any(ice_algae_ids==ip)) then
         !set velocity 3 cm/day
         where (face_porosity(ice_water_index+1:surface_index-1) > 0.05_rk) &
-          wti(ice_water_index+1:surface_index-1,ip) = -0.03_rk/86400._rk
+          wti(ice_water_index+1:surface_index-1,ip) = &
+              -0.01_rk*ice_algae_velocity/86400._rk
         wti(ice_water_index,ip) = 0._rk
       end if
     end do
