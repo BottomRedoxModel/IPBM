@@ -13,9 +13,6 @@
 #define _WIND_SPEED_				5._rk
 #define _AIR_CO2_					380._rk
 
-!horizontal flux rate
-#define _HMIX_RATE_					0.00333_rk
-
 #define _FABM_YAML_NAME_			get_ipbm_string_parameter('fabm_yaml_name')
 #define _FILE_NAME_                 get_ipbm_string_parameter('input_file_name')
 #define _INITIALIZATION_SINCE_YEAR_ get_ipbm_real_parameter('initialization_since_year') 

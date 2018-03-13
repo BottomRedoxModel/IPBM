@@ -1012,10 +1012,10 @@ contains
 
     ! in cm / day
     ice_algae_velocity = _IALGAE_VELOCITY_
+    !
+    call relaxation(ice_water_index,bbl_sed_index,day)
 
     do i = 1,number_of_circles
-      !
-      call relaxation(ice_water_index,bbl_sed_index,day)
 
       !diffusion
       !dcc = 0._rk
@@ -1188,10 +1188,10 @@ contains
     do i = 1,number_of_parameters
       kz_tot(:,i) = brine_flux+kz_ice_gravity+&
                     kz_turb+kz_mol+kz_bio*O2stat
-      !if (any(ice_algae_ids==i)) then
-      !  kz_tot(ice_water_index+1:surface_index-1,i) = 0._rk
-      !  kz_tot(ice_water_index,i) = 0._rk
-      !end if
+      if (any(ice_algae_ids==i)) then
+        kz_tot(ice_water_index+1:surface_index-1,i) = 0._rk
+        kz_tot(ice_water_index,i) = 0._rk
+      end if
     end do
 
     !calculate surface fluxes only for ice free periods
@@ -1683,11 +1683,11 @@ contains
         call do_relaxation(2000._rk,ice_water_index-1,i)
         call do_relaxation(2350._rk,bbl_sed_index,i)
       else if (state_vars(i)%name.eq._PO4_) then
-        call do_relaxation(sinusoidal(day,0.8_rk),ice_water_index-1,i)
+        call do_relaxation(sinusoidal(day,1.2_rk),ice_water_index-2,i)
       else if (state_vars(i)%name.eq._NO3_) then
-        call do_relaxation(sinusoidal(day,0.4_rk),ice_water_index-1,i)
+        call do_relaxation(sinusoidal(day,1._rk),ice_water_index-2,i)
       else if (state_vars(i)%name.eq._Si_) then
-        call do_relaxation(sinusoidal(day,10.0_rk),ice_water_index-1,i)
+        call do_relaxation(sinusoidal(day,10.0_rk),ice_water_index-2,i)
       end if
     end do
   contains
@@ -1710,10 +1710,8 @@ contains
 
     real(rk) dcc
 
-    dcc = _HMIX_RATE_ &
-      * (value-state_vars(i)%value(index))
-    state_vars(i)%value(index) = state_vars(i)%value(index) &
-      + _SECONDS_PER_CIRCLE_*dcc
+    dcc = value-state_vars(i)%value(index)
+    state_vars(i)%value(index) = state_vars(i)%value(index)+dcc
 
   end subroutine do_relaxation_single
   !
@@ -1729,10 +1727,8 @@ contains
     real(rk) dcc
 
     do j = from,till
-      dcc = _HMIX_RATE_ &
-        * (value(j)-state_vars(i)%value(j))
-      state_vars(i)%value(j) = state_vars(i)%value(j) &
-        + _SECONDS_PER_CIRCLE_*dcc
+      dcc = value(j)-state_vars(i)%value(j)
+      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
     end do
   end subroutine do_relaxation_array
   !
