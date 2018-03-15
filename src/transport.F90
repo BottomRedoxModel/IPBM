@@ -1688,6 +1688,8 @@ contains
         call do_relaxation(sinusoidal(day,1._rk),ice_water_index-2,i)
       else if (state_vars(i)%name.eq._Si_) then
         call do_relaxation(sinusoidal(day,10.0_rk),ice_water_index-2,i)
+      !else if (state_vars(i)%name.eq._PON_) then
+      !  call do_relaxation(sinusoidal(day,1.0_rk),ice_water_index-2,i)
       end if
     end do
   contains
