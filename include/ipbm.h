@@ -8,7 +8,7 @@
 #define _IPBM_FILE_NAME_ 'ipbm.yaml'
 
 #define _RE_DAY_					100
-#define _RE_YEAR_					1
+#define _RE_YEAR_					10
 #define _SECONDS_PER_CIRCLE_        300
 #define _WIND_SPEED_				5._rk
 #define _AIR_CO2_					380._rk
