@@ -150,7 +150,7 @@ contains
     !getting ice algae parameters ids
     k = 0
     do i = 1,number_of_parameters
-      if (&!i == find_index_of_state_variable(trim(_Phy_)).or.&
+      if (i == find_index_of_state_variable(trim(_Phy_)).or.&
           i == find_index_of_state_variable(trim(_iDiatoms_)//"_c").or.&
           i == find_index_of_state_variable(trim(_iDiatoms_)//"_n").or.&
           i == find_index_of_state_variable(trim(_iDiatoms_)//"_p").or.&
@@ -169,7 +169,7 @@ contains
       allocate(ice_algae_ids(k))
       k = 1
       do i = 1,number_of_parameters
-        if (&!i == find_index_of_state_variable(trim(_Phy_)).or.&
+        if (i == find_index_of_state_variable(trim(_Phy_)).or.&
           i == find_index_of_state_variable(trim(_iDiatoms_)//"_c").or.&
           i == find_index_of_state_variable(trim(_iDiatoms_)//"_n").or.&
           i == find_index_of_state_variable(trim(_iDiatoms_)//"_p").or.&
@@ -667,13 +667,13 @@ contains
                standard_vars%get_column(_DEPTH_ON_BOUNDARY_,1))
 
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
-                           indices,indices_faces,i,&
+                           indices,indices_faces,1,&
                            int(air_ice_indexes(1)))
       call netcdf_water%save(fabm_model,standard_vars,state_vars,&
-                             depth,depth_faces,i,&
+                             depth,depth_faces,1,&
                              int(air_ice_indexes(1)))
       call netcdf_sediments%save(fabm_model,standard_vars,state_vars,&
-                                 depth,depth_faces,i,&
+                                 depth,depth_faces,1,&
                                  int(air_ice_indexes(1)))
 
       write(*,*) "Stabilizing initial array of values, in progress ..."
@@ -1189,7 +1189,7 @@ contains
       kz_tot(:,i) = brine_flux+kz_ice_gravity+&
                     kz_turb+kz_mol+kz_bio*O2stat
       if (any(ice_algae_ids==i)) then
-        kz_tot(ice_water_index+1:surface_index-1,i) = 0._rk
+        kz_tot(ice_water_index+1:surface_index,i) = 0._rk
         kz_tot(ice_water_index,i) = 0._rk
       end if
     end do
@@ -1480,11 +1480,14 @@ contains
         wti(k_sed1,ip) = u_b(k_sed1)+u_1(k_sed1)+u_1c(k_sed1)
       end if
       wti(1,ip) = wti(2,ip)
+      !no sedimentation if porosity less then 0.05
+      where (face_porosity(ice_water_index+1:surface_index) < 0.05_rk) &
+          wti(ice_water_index+1:surface_index,ip) = 0._rk
       !special vertical sedimentation for diatoms in the ice
       if (any(ice_algae_ids==ip)) then
         !set velocity 3 cm/day
-        where (face_porosity(ice_water_index+1:surface_index-1) > 0.05_rk) &
-          wti(ice_water_index+1:surface_index-1,ip) = &
+        where (face_porosity(ice_water_index+1:surface_index) > 0.05_rk) &
+          wti(ice_water_index+1:surface_index,ip) = &
               -0.01_rk*ice_algae_velocity/86400._rk
         wti(ice_water_index,ip) = 0._rk
       end if
@@ -1689,7 +1692,7 @@ contains
       else if (state_vars(i)%name.eq._Si_) then
         call do_relaxation(sinusoidal(day,10.0_rk),ice_water_index-2,i)
       !else if (state_vars(i)%name.eq._PON_) then
-      !  call do_relaxation(sinusoidal(day,1.0_rk),ice_water_index-2,i)
+      !  call do_relaxation(sinusoidal(day,2.0_rk),ice_water_index-2,i)
       end if
     end do
   contains
