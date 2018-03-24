@@ -1688,13 +1688,13 @@ contains
       else if (state_vars(i)%name.eq._PO4_) then
         call do_relaxation(sinusoidal(day,0.4_rk),ice_water_index-2,i)
       else if (state_vars(i)%name.eq._NO3_) then
-        call do_relaxation(sinusoidal(day,4._rk),ice_water_index-2,i)
+        call do_relaxation(sinusoidal(day,3._rk),ice_water_index-2,i)
       else if (state_vars(i)%name.eq._Si_) then
         call do_relaxation(sinusoidal(day,10.0_rk),ice_water_index-2,i)
       else if (state_vars(i)%name.eq._O2_) then
         call do_relaxation(330.0_rk,ice_water_index-2,i)
-      else if (state_vars(i)%name.eq._PON_) then
-        call do_relaxation(sinusoidal(day,2.0_rk),ice_water_index-2,i)
+      !else if (state_vars(i)%name.eq._PON_) then
+      !  call do_relaxation(sinusoidal(day,2.0_rk),ice_water_index-2,i)
       end if
     end do
   contains
