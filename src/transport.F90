@@ -1486,9 +1486,9 @@ contains
       !special vertical sedimentation for diatoms in the ice
       if (any(ice_algae_ids==ip)) then
         !set velocity 3 cm/day
-        where (face_porosity(ice_water_index+1:surface_index) > 0.05_rk) &
-          wti(ice_water_index+1:surface_index,ip) = &
-              -0.01_rk*ice_algae_velocity/86400._rk
+        !where (face_porosity(ice_water_index+1:surface_index) > 0.05_rk) &
+        !  wti(ice_water_index+1:surface_index,ip) = &
+        !      -0.01_rk*ice_algae_velocity/86400._rk
         wti(ice_water_index,ip) = 0._rk
       end if
     end do
@@ -1692,9 +1692,9 @@ contains
       else if (state_vars(i)%name.eq._Si_) then
         call do_relaxation(sinusoidal(day,10.0_rk),ice_water_index-2,i)
       else if (state_vars(i)%name.eq._O2_) then
-        call do_relaxation(330.0_rk,ice_water_index-2,i)
-      !else if (state_vars(i)%name.eq._PON_) then
-      !  call do_relaxation(sinusoidal(day,2.0_rk),ice_water_index-2,i)
+        call do_relaxation(sinusoidal(day,300.0_rk),ice_water_index-2,i)
+      else if (state_vars(i)%name.eq._PON_) then
+        call do_relaxation(15.0_rk,ice_water_index-2,i)
       end if
     end do
   contains
@@ -1703,7 +1703,8 @@ contains
       real(rk),intent(in):: multiplier
       real(rk) sinusoidal
 
-      sinusoidal = (1._rk+sin(2._rk*_PI_*(&
+      sinusoidal =  multiplier/2 + 0.5_rk*&
+                    (1._rk+sin(2._rk*_PI_*(&
                     day-130._rk)/365._rk))*multiplier/2
     end function sinusoidal
   end subroutine
