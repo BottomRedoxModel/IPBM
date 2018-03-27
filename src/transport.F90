@@ -1480,15 +1480,15 @@ contains
         wti(k_sed1,ip) = u_b(k_sed1)+u_1(k_sed1)+u_1c(k_sed1)
       end if
       wti(1,ip) = wti(2,ip)
-      !no sedimentation if porosity less then 0.05
-      where (face_porosity(ice_water_index+1:surface_index) < 0.05_rk) &
+      !no sedimentation if porosity less then _REQUIRED_VOLUME_
+      where (face_porosity(ice_water_index+1:surface_index) < _REQUIRED_VOLUME_) &
           wti(ice_water_index+1:surface_index,ip) = 0._rk
       !special vertical sedimentation for diatoms in the ice
       if (any(ice_algae_ids==ip)) then
         !set velocity 3 cm/day
-        !where (face_porosity(ice_water_index+1:surface_index) > 0.05_rk) &
-        !  wti(ice_water_index+1:surface_index,ip) = &
-        !      -0.01_rk*ice_algae_velocity/86400._rk
+        where (face_porosity(ice_water_index+1:surface_index) > 0.05_rk) &
+          wti(ice_water_index+1:surface_index,ip) = &
+              -0.01_rk*ice_algae_velocity/86400._rk
         wti(ice_water_index,ip) = 0._rk
       end if
     end do
@@ -1692,9 +1692,9 @@ contains
       else if (state_vars(i)%name.eq._Si_) then
         call do_relaxation(sinusoidal(day,10.0_rk),ice_water_index-2,i)
       else if (state_vars(i)%name.eq._O2_) then
-        call do_relaxation(sinusoidal(day,300.0_rk),ice_water_index-2,i)
+        call do_relaxation(sinusoidal(day,330.0_rk),ice_water_index-2,i)
       else if (state_vars(i)%name.eq._PON_) then
-        call do_relaxation(15.0_rk,ice_water_index-2,i)
+        call do_relaxation(sinusoidal(day,12.5_rk),ice_water_index-2,i)
       end if
     end do
   contains
