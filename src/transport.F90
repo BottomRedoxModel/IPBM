@@ -1695,9 +1695,12 @@ contains
         call do_relaxation(sinusoidal(day,330.0_rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._PON_) then
         call do_relaxation(sinusoidal(day,12.5_rk),ice_water_index-1,i)
-      else if (state_vars(i)%name.eq."B_CH4_CH4") then
-        state_vars(i)%value(bbl_sed_index) = &
-          state_vars(i)%value(bbl_sed_index)+1900._rk
+      !else if (state_vars(i)%name.eq."B_CH4_CH4") then
+      !  call do_relaxation(10._rk,bbl_sed_index,i)
+      !  call do_relaxation(10._rk,bbl_sed_index+1,i)
+      !  call do_relaxation(10._rk,bbl_sed_index+2,i)
+      !  call do_relaxation(10._rk,bbl_sed_index+3,i)
+      !  call do_relaxation(10._rk,bbl_sed_index+4,i)
       end if
     end do
   contains
