@@ -1,16 +1,16 @@
 !-----------------------------------------------------------------------
-! IPBM is free software: you can redistribute it and/or modify it under
+! SPBM is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
-! the COPYING file at the root of the IPBM distribution.
+! the COPYING file at the root of the SPBM distribution.
 !-----------------------------------------------------------------------
 ! Original author(s): Shamil Yakubov
 !-----------------------------------------------------------------------
 
-#include "../include/ipbm.h"
+#include "../include/spbm.h"
 #include "../include/parameters.h"
 !
 !main module for transport calculations
@@ -20,13 +20,13 @@ module transport
   use fabm_config
   use fabm_driver
   use fabm_types
-  use variables_mod,only: ipbm_standard_variables,&
-                          ipbm_state_variable
-  use yaml_mod !to use a function mentioned in ipbm.h
+  use variables_mod,only: spbm_standard_variables,&
+                          spbm_state_variable
+  use yaml_mod !to use a function mentioned in spbm.h
 
   implicit none
   private
-  public initialize_ipbm,sarafan
+  public initialize_spbm,sarafan
 
   integer previous_ice_index
   integer number_of_parameters
@@ -45,8 +45,8 @@ module transport
   !bcc and scc - arrays for bottom and surface fabm variables
   real(rk),allocatable,dimension(:),target:: bcc,scc
   !variables for model
-  type(ipbm_standard_variables) standard_vars
-  type(ipbm_state_variable),allocatable,&
+  type(spbm_standard_variables) standard_vars
+  type(spbm_state_variable),allocatable,&
                        dimension(:),target:: state_vars
   type(type_model) fabm_model
   type(type_bulk_variable_id)      ,save:: h_id,temp_id,salt_id
@@ -84,9 +84,9 @@ module transport
 
 contains
   !
-  !initialize ipbm
+  !initialize spbm
   !
-  subroutine initialize_ipbm()
+  subroutine initialize_spbm()
     real(rk),allocatable,dimension(:):: air_ice_indexes
     real(rk),allocatable,dimension(:):: zeros
     !NaN value
@@ -101,7 +101,7 @@ contains
     D_QNAN = 0._rk
     D_QNAN = D_QNAN / D_QNAN
 
-    call read_ipbm_configuration()
+    call read_spbm_configuration()
 
     !initializing fabm from fabm.yaml file
     _LINE_
@@ -109,9 +109,9 @@ contains
     !_PAUSE_
     _LINE_
     !
-    !initializing ipbm standard_variables
+    !initializing spbm standard_variables
     !makes grid, it starts from bottom (1) to surface (end point)
-    standard_vars = ipbm_standard_variables()
+    standard_vars = spbm_standard_variables()
     !_PAUSE_
     number_of_layers = standard_vars%get_value(&
                            "number_of_layers")
@@ -132,7 +132,7 @@ contains
       !allocate(state_vars(i)%fabm_value(number_of_layers))
       allocate(state_vars(i)%sinking_velocity(number_of_layers))
       state_vars(i)%value = fabm_model%state_variables(i)%initial_value
-      call state_vars(i)%set_ipbm_state_variable(.false.,.false.,&
+      call state_vars(i)%set_spbm_state_variable(.false.,.false.,&
         _NEUMANN_,_NEUMANN_,0._rk,0._rk,0._rk,zeros)
       !vertical movement rates (m/s, positive for upwards),
       !and set these to the values provided by the model.
@@ -200,7 +200,7 @@ contains
     end do
     !
     !initializing values
-    !ipbm needs to know is variable a solid
+    !spbm needs to know is variable a solid
     call configurate_state_variables()
     call fabm_initialize_state(fabm_model,1,number_of_layers)
     allocate(air_ice_indexes,source=&
@@ -983,9 +983,9 @@ contains
     layer_thicknesses = &
     (/ 0._rk,standard_vars%get_column("layer_thicknesses",id) /)
     !
-    !is needed by ipbm_do_sedimentation
+    !is needed by spbm_do_sedimentation
     dphidz_SWI    = standard_vars%get_value("dphidz_SWI")
-    !is needed by ipbm_do_sedimentation
+    !is needed by spbm_do_sedimentation
     face_porosity = &
     standard_vars%get_column("porosity_on_interfaces",id)
     !is needed to constrain production in ice and seds
@@ -1019,7 +1019,7 @@ contains
 
       !diffusion
       !dcc = 0._rk
-      call ipbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
+      call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
                              pF1_solutes,pF2_solutes,pF1_solids,&
                              pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
                              layer_thicknesses,brine_release,dcc)
@@ -1114,7 +1114,7 @@ contains
       call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !sedimentation
-      call ipbm_do_sedimentation(surface_index,bbl_sed_index,&
+      call spbm_do_sedimentation(surface_index,bbl_sed_index,&
                                  ice_water_index,k_sed1,w_b,u_b,&
                                  dphidz_SWI,&
                                  increment,&
@@ -1130,7 +1130,7 @@ contains
   !
   !diffusion part
   !
-  subroutine ipbm_do_diffusion(&
+  subroutine spbm_do_diffusion(&
              surface_index,bbl_sed_index,ice_water_index,&
              pF1_solutes,pF2_solutes,pF1_solids,&
              pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
@@ -1154,7 +1154,7 @@ contains
     real(rk),dimension(surface_index-1,number_of_parameters),&
                                            intent(out):: increment
 
-    type(ipbm_state_variable):: oxygen
+    type(spbm_state_variable):: oxygen
     real(rk),dimension(number_of_layers+1):: ones
     real(rk),dimension(number_of_layers+1):: zeros
     real(rk),dimension(number_of_layers+1):: taur_r
@@ -1201,7 +1201,7 @@ contains
     end if
     !
     do i = 1,number_of_parameters
-      call state_vars(i)%set_ipbm_state_variable(&
+      call state_vars(i)%set_spbm_state_variable(&
         use_bound_up = _NEUMANN_,bound_up = surface_flux(i))
     end do
 
@@ -1280,7 +1280,7 @@ contains
   !calculates vertical advection (sedimentation)
   !in the water column and sediments
   !
-  subroutine ipbm_do_sedimentation(surface_index,bbl_sed_index,&
+  subroutine spbm_do_sedimentation(surface_index,bbl_sed_index,&
                                    ice_water_index,k_sed1,w_b,u_b,&
                                    dphidz_SWI,increment,&
                                    face_porosity,kz_bio,&
@@ -1304,7 +1304,7 @@ contains
     real(rk),intent(in):: ice_algae_velocity
 
     !Local variables
-    type(ipbm_state_variable):: oxygen
+    type(spbm_state_variable):: oxygen
 
     !NaN value
     !REAL(rk), PARAMETER :: D_QNAN = &
@@ -1524,7 +1524,7 @@ contains
       end do
     end do
     !call state_vars(1)%print_state_variable()
-  end subroutine ipbm_do_sedimentation
+  end subroutine spbm_do_sedimentation
   !
   !recalculates state variables concentrations due to freezing or melting
   !
@@ -1658,7 +1658,7 @@ contains
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
       if (state_vars(i)%name.eq.trim(inname)) then
-        call state_vars(i)%set_ipbm_state_variable(is_solid,&
+        call state_vars(i)%set_spbm_state_variable(is_solid,&
           is_gas,use_bound_up,use_bound_low,bound_up,&
           bound_low,density,sinking_velocity,value,layer)
         return
@@ -1746,11 +1746,11 @@ contains
     end do
   end subroutine do_relaxation_array
   !
-  !returns type ipbm_state_variable by name
+  !returns type spbm_state_variable by name
   !
   function find_state_variable(inname)
     character(len=*),intent(in):: inname
-    type(ipbm_state_variable),target:: find_state_variable
+    type(spbm_state_variable),target:: find_state_variable
     integer number_of_vars
     integer i
 
@@ -1818,6 +1818,6 @@ end module
 program main
   use transport
 
-  call initialize_ipbm()
+  call initialize_spbm()
   call sarafan()
 end program

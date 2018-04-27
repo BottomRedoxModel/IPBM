@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 # Create main project.
-project(IPBM Fortran)
+project(SPBM Fortran)
 
 # Specify default build type for single-type systems (not VS)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -37,12 +37,12 @@ endif()
 
 find_path(FABM_BASE src/fabm.F90 DOC "Path to FABM source directory.")
 mark_as_advanced(CLEAR FABM_BASE)
-set(FABM_FORCED_HOST ipbm)
+set(FABM_FORCED_HOST spbm)
 add_subdirectory(${FABM_BASE}/src fabm)
 set(FABM_LIBRARIES fabm)
 set(FABM_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/fabm/modules)
 
-add_executable(IPBM WIN32
+add_executable(SPBM WIN32
                transport.F90
                diff_mod.F90
                variables_mod.F90
@@ -53,24 +53,24 @@ add_executable(IPBM WIN32
                item_mod.F90
                ice_mod.F90
                yaml_mod.F90
-               ../include/ipbm.h
+               ../include/spbm.h
                ../include/parameters.h)
 
-set_property(TARGET IPBM APPEND PROPERTY INCLUDE_DIRECTORIES "${FABM_INCLUDE_DIRS}")
-set_property(TARGET IPBM APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${FABM_INCLUDE_DIRS}")
-set_property(TARGET IPBM PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
-set_property(TARGET IPBM APPEND PROPERTY INCLUDE_DIRECTORIES "${FABM_INCLUDE_DIRS}")
+set_property(TARGET SPBM APPEND PROPERTY INCLUDE_DIRECTORIES "${FABM_INCLUDE_DIRS}")
+set_property(TARGET SPBM APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${FABM_INCLUDE_DIRS}")
+set_property(TARGET SPBM PROPERTY Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/modules)
+set_property(TARGET SPBM APPEND PROPERTY INCLUDE_DIRECTORIES "${FABM_INCLUDE_DIRS}")
 
-target_link_libraries(IPBM ${FABM_LIBRARIES})
-target_link_libraries(IPBM "${NetCDF_LIBRARIES}")
+target_link_libraries(SPBM ${FABM_LIBRARIES})
+target_link_libraries(SPBM "${NetCDF_LIBRARIES}")
 
 if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
   if(WIN32)
-    target_compile_options(IPBM PRIVATE /nothreads /libs:static /libs:qwin)
+    target_compile_options(SPBM PRIVATE /nothreads /libs:static /libs:qwin)
   endif()
 endif()
 
 if (NetCDF_STATIC_MSVC_BUILD)
-  set_property(TARGET IPBM PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmt\"")
-  set_property(TARGET IPBM PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmtd\"")
+  set_property(TARGET SPBM PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmt\"")
+  set_property(TARGET SPBM PROPERTY LINK_FLAGS_DEBUG "/NODEFAULTLIB:\"libcmtd\"")
 endif()

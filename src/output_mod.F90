@@ -1,27 +1,27 @@
 !-----------------------------------------------------------------------
-! IPBM is free software: you can redistribute it and/or modify it under
+! SPBM is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
-! the COPYING file at the root of the IPBM distribution.
+! the COPYING file at the root of the SPBM distribution.
 !-----------------------------------------------------------------------
 ! Original author(s): Shamil Yakubov
 !-----------------------------------------------------------------------
 
-#include "../include/ipbm.h"
+#include "../include/spbm.h"
 
 module output_mod
   use types_mod
-  use variables_mod,only: ipbm_standard_variables,&
-                          ipbm_state_variable
+  use variables_mod,only: spbm_standard_variables,&
+                          spbm_state_variable
   use fabm_driver
   use fabm      , only: type_model,fabm_get_bulk_diagnostic_data,&
                         type_bulk_variable_id,standard_variables
   use fabm_types, only: rk
   use netcdf
-  use yaml_mod !to use a function mentioned in ipbm.h
+  use yaml_mod !to use a function mentioned in spbm.h
 
   implicit none
   private
@@ -57,7 +57,7 @@ contains
                                    number_of_layers)
     type(type_output):: type_output_constructor
     type(type_model)              ,intent(in):: model
-    type(ipbm_standard_variables) ,intent(in):: standard_vars
+    type(spbm_standard_variables) ,intent(in):: standard_vars
     character(len=*)              ,intent(in):: infile
     integer                       ,intent(in):: first_layer
     integer                       ,intent(in):: last_layer
@@ -72,7 +72,7 @@ contains
                         first_layer,last_layer,number_of_layers)
     class(type_output)                  ,intent(inout):: self
     type(type_model)                     ,intent(in):: model
-    class(ipbm_standard_variables),target,intent(in):: standard_vars
+    class(spbm_standard_variables),target,intent(in):: standard_vars
     character(len=*)                     ,intent(in):: infile
     integer                              ,intent(in):: first_layer
     integer                              ,intent(in):: last_layer
@@ -81,7 +81,7 @@ contains
     type(type_bulk_variable_id):: fabm_standard_id
   
     class(variable)               ,allocatable:: curr
-    class(ipbm_standard_variables),pointer    :: temporary
+    class(spbm_standard_variables),pointer    :: temporary
 
     !dimension lengths
     integer,parameter:: time_len = NF90_UNLIMITED
@@ -200,15 +200,15 @@ contains
 
     class(type_output),intent(inout):: self
     type (type_model)                    ,intent(in):: model
-    type(ipbm_standard_variables),target ,intent(in):: standard_vars
-    type(ipbm_state_variable),allocatable,intent(in):: state_vars(:)
+    type(spbm_standard_variables),target ,intent(in):: standard_vars
+    type(spbm_state_variable),allocatable,intent(in):: state_vars(:)
     real(rk),allocatable,dimension(:)    ,intent(in):: z
     real(rk),allocatable,dimension(:)    ,intent(in):: z_faces
     integer                              ,intent(in):: day
     integer                              ,intent(in):: air_ice_index
 
     class(variable)               ,allocatable:: curr
-    class(ipbm_standard_variables),pointer    :: temporary
+    class(spbm_standard_variables),pointer    :: temporary
     
     !NaN value
     !REAL(rk), PARAMETER :: D_QNAN = &

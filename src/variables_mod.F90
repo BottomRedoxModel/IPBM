@@ -1,16 +1,16 @@
 !-----------------------------------------------------------------------
-! IPBM is free software: you can redistribute it and/or modify it under
+! SPBM is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU General Public License as published by the Free
 ! Software Foundation (https://www.gnu.org/licenses/gpl.html).
 ! It is distributed in the hope that it will be useful, but WITHOUT ANY
 ! WARRANTY; without even the implied warranty of MERCHANTABILITY or
 ! FITNESS FOR A PARTICULAR PURPOSE. A copy of the license is provided in
-! the COPYING file at the root of the IPBM distribution.
+! the COPYING file at the root of the SPBM distribution.
 !-----------------------------------------------------------------------
 ! Original author(s): Shamil Yakubov
 !-----------------------------------------------------------------------
 
-#include "../include/ipbm.h"
+#include "../include/spbm.h"
 #include "../include/parameters.h"
 
 module variables_mod
@@ -18,7 +18,7 @@ module variables_mod
   use input_mod
   use ice_mod
   use fabm_driver
-  use yaml_mod !to use a function mentioned in ipbm.h
+  use yaml_mod !to use a function mentioned in spbm.h
 
   implicit none
   !NaN value
@@ -26,7 +26,7 @@ module variables_mod
   !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
   real(rk) D_QNAN
 
-  type,extends(list_variables):: ipbm_standard_variables
+  type,extends(list_variables):: spbm_standard_variables
     type(ice) type_ice
   contains
     private
@@ -43,7 +43,7 @@ module variables_mod
     procedure,public:: first_day
   end type
 
-  type,extends(variable_1d):: ipbm_state_variable
+  type,extends(variable_1d):: spbm_state_variable
     logical  is_solid
     logical  is_gas
     integer  use_bound_up
@@ -54,28 +54,28 @@ module variables_mod
     real(rk),allocatable,dimension(:):: sinking_velocity
     !real(rk),allocatable,dimension(:):: fabm_value
   contains
-    procedure:: set_ipbm_state_variable
+    procedure:: set_spbm_state_variable
     procedure:: print_state_variable
   end type
 
-  interface ipbm_standard_variables
-    module procedure ipbm_standard_variables_constructor
+  interface spbm_standard_variables
+    module procedure spbm_standard_variables_constructor
   end interface
 contains
-  function ipbm_standard_variables_constructor()
-    type(ipbm_standard_variables):: ipbm_standard_variables_constructor
+  function spbm_standard_variables_constructor()
+    type(spbm_standard_variables):: spbm_standard_variables_constructor
 
     !NaN
     D_QNAN = 0._rk
     D_QNAN = D_QNAN / D_QNAN
 
-    call ipbm_standard_variables_constructor%initialize()
+    call spbm_standard_variables_constructor%initialize()
   end function
   !
   !Initialize standard variables list
   !
   subroutine initialize_standard_variables(self)
-    class(ipbm_standard_variables),intent(inout):: self
+    class(spbm_standard_variables),intent(inout):: self
     type(type_input):: kara_input
 
     !open input netcdf and make list with all variables
@@ -111,7 +111,7 @@ contains
     call self%add_diffusivity(kara_input,_TURBULENCE_,&
                               "molecular_diffusivity",&
                               "bioturbation_diffusivity")
-    call self%print_list_variables('Allocated ipbm_standard_variables:')
+    call self%print_list_variables('Allocated spbm_standard_variables:')
     !call self%print_var("porosity")
     !call self%print_var("porosity_on_interfaces")
     !delete unneeded list
@@ -119,7 +119,7 @@ contains
   end subroutine
 
   subroutine add_standard_var(self,name_input,inname)
-    class(ipbm_standard_variables),intent(inout):: self
+    class(spbm_standard_variables),intent(inout):: self
     type(type_input)              ,intent(in)   :: name_input
     character(len=*)              ,intent(in)   :: inname
     class(variable),allocatable:: var
@@ -134,7 +134,7 @@ contains
   !Add discretized ice_thicknesses
   !
   subroutine add_ice_thickness(self,name_input)
-    class(ipbm_standard_variables),intent(inout):: self
+    class(spbm_standard_variables),intent(inout):: self
     type(type_input)              ,intent(in)   :: name_input
     class(variable),allocatable:: var
     type(variable_1d) new_var_1d
@@ -156,7 +156,7 @@ contains
              inname,ice_layers,ice_water_index,&
              water_bbl_index,bbl_sediments_index,&
              number_of_boundaries)
-    class(ipbm_standard_variables),intent(inout):: self
+    class(spbm_standard_variables),intent(inout):: self
     type(type_input),intent(in):: name_input
     character(len=*),intent(in):: inname
     integer         ,intent(in):: ice_layers
@@ -237,7 +237,7 @@ contains
 
   subroutine add_grid_on_centers(self,inname,inname_increments,&
                                  number_of_layers,air_ice_indexes)
-    class(ipbm_standard_variables),intent(inout):: self
+    class(spbm_standard_variables),intent(inout):: self
 
     character(len=*),intent(in):: inname
     character(len=*),intent(in):: inname_increments
@@ -299,7 +299,7 @@ contains
   end subroutine
 
   subroutine add_day_number(self,inname)
-    class(ipbm_standard_variables),intent(inout):: self
+    class(spbm_standard_variables),intent(inout):: self
     character(len=*)              ,intent(in)   :: inname
     class(variable),allocatable:: var
 
@@ -316,7 +316,7 @@ contains
   end subroutine
 
   integer function first_day(self)
-    class(ipbm_standard_variables),intent(in):: self
+    class(spbm_standard_variables),intent(in):: self
     class(variable),allocatable:: var
 
     call self%get_var("day_number",var)
@@ -327,7 +327,7 @@ contains
   end function
 
   subroutine add_layer_thicknesses(self,inname)
-    class(ipbm_standard_variables),intent(inout):: self
+    class(spbm_standard_variables),intent(inout):: self
     character(len=*)              ,intent(in)   :: inname
     class(variable)        ,allocatable:: var
     real(rk),dimension(:)  ,allocatable:: air_ice_indexes
@@ -362,7 +362,7 @@ contains
   end subroutine
 
   subroutine add_constant_in_sed(self,name_input,inname)
-    class(ipbm_standard_variables),intent(inout):: self
+    class(spbm_standard_variables),intent(inout):: self
     type(type_input)              ,intent(in)   :: name_input
     character(len=*)              ,intent(in)   :: inname
     class(variable),allocatable        :: var
@@ -438,7 +438,7 @@ contains
     ! dC/dt = d/dz(kzti*dC/dz)                   in the water column
     ! dC/dt = d/dz((1-phi)*kzti*d/dz(C/(1-phi))) in the sediments
     !
-    class(ipbm_standard_variables),intent(inout):: self
+    class(spbm_standard_variables),intent(inout):: self
     character(len=*),intent(in):: name_porosity
     character(len=*),intent(in):: name_porosity_faces
     character(len=*),intent(in):: name_pf_solutes_1
@@ -608,7 +608,7 @@ contains
   subroutine add_diffusivity(self,name_input,name_eddy_diffusivity,&
                             name_molecular_diffusivity,&
                             name_bioturbation_diffusivity)
-    class(ipbm_standard_variables),intent(inout):: self
+    class(spbm_standard_variables),intent(inout):: self
     type(type_input),intent(in):: name_input
     character(len=*),intent(in):: name_eddy_diffusivity
     character(len=*),intent(in):: name_molecular_diffusivity
@@ -733,10 +733,10 @@ contains
     call self%add_item(new_var_2d)
   end subroutine
 
-  pure subroutine set_ipbm_state_variable(self,is_solid,&
+  pure subroutine set_spbm_state_variable(self,is_solid,&
       is_gas,use_bound_up,use_bound_low,bound_up,&
       bound_low,density,sinking_velocity,value,layer)
-    class(ipbm_state_variable),intent(inout):: self
+    class(spbm_state_variable),intent(inout):: self
     logical,optional          ,intent(in)   :: is_solid
     logical,optional          ,intent(in)   :: is_gas
     integer,optional          ,intent(in)   :: use_bound_up
@@ -761,7 +761,7 @@ contains
   end subroutine
 
   subroutine print_state_variable(self)
-    class(ipbm_state_variable),intent(in):: self
+    class(spbm_state_variable),intent(in):: self
 
     integer i
 

@@ -22,21 +22,21 @@ mark_as_advanced(NetCDF_INCLUDE_DIRS NetCDF_LIBRARIES)
 
 elseif (WIN32)
 
-    set(IPBMDIR $ENV{IPBMDIR})
+    set(SPBMDIR $ENV{SPBMDIR})
 
 # On Windows: use CMake to locate paths; default to NetCDF static library
-# provided with IPBM.
+# provided with SPBM.
 find_library(NetCDF_LIBRARIES NAMES netcdfs
-    HINTS ${IPBMDIR}/extras/netcdf/win32/3.6.3/lib
+    HINTS ${SPBMDIR}/extras/netcdf/win32/3.6.3/lib
              DOC "NetCDF library")
 find_path(NetCDF_INCLUDE_DIRS netcdf.mod
-    HINTS ${IPBMDIR}/extras/netcdf/win32/3.6.3/include ENV NetCDFINC
+    HINTS ${SPBMDIR}/extras/netcdf/win32/3.6.3/include ENV NetCDFINC
           DOC "NetCDF include directory")
 
 get_filename_component(NetCDF_LIBRARIES_full ${NetCDF_LIBRARIES} ABSOLUTE)
-get_filename_component(NetCDF_LIBRARIES_default_full "${IPBMDIR}/extras/netcdf/win32/3.6.3/lib/netcdfs.lib" ABSOLUTE)
+get_filename_component(NetCDF_LIBRARIES_default_full "${SPBMDIR}/extras/netcdf/win32/3.6.3/lib/netcdfs.lib" ABSOLUTE)
 if(MSVC AND NetCDF_LIBRARIES_full STREQUAL NetCDF_LIBRARIES_default_full)
-    # Win32 NetCDF library provided with IPBM is statically built against release libraries.
+    # Win32 NetCDF library provided with SPBM is statically built against release libraries.
   # Dependent projects need to do the same in release mode to prevent linking conflicts.
   set(NetCDF_STATIC_MSVC_BUILD TRUE)
 endif()
