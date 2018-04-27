@@ -18,23 +18,41 @@ Then:
 
   download SPBM
 
-  `$ git clone https://github.com/BottomRedoxModel/SPBM.git`
-  `$ git checkout tags/spbm_v0.2 -b spbm_v0.2`
+  ```
+  git clone https://github.com/BottomRedoxModel/SPBM.git
+  cd SPBM
+  git checkout tags/spbm_v0.2 -b spbm_v0.2
+  cd ..
+  ```
   
   download configuration files and data for SPBM
   
-  `$ git clone https://github.com/BottomRedoxModel/SPBM_data.git`
-  `$ git checkout tags/spbm_v0.2 -b spbm_v0.2`
+  ```
+  git clone https://github.com/BottomRedoxModel/SPBM_data.git
+  cd SPBM_data
+  git checkout tags/spbm_v0.2 -b spbm_v0.2
+  cd ..
+  ```
    
-  download [FABM]
+  download [FABM] from this repository
 
-  `$ git clone https://github.com/BottomRedoxModel/fabm.git`
-  `$ git checkout tags/spbm_v0.2 -b spbm_v0.2`
+  ```
+  git clone https://github.com/BottomRedoxModel/fabm.git
+  cd fabm
+  git checkout tags/spbm_v0.2 -b spbm_v0.2
+  cd ..
+  ```
+  
+  This [FABM] version has SPBM registered as the host program already.
   
   download biogeochemistry model BROM
   
-  `$ git clone https://github.com/BottomRedoxModel/brom_niva_module`
-  `$ git checkout tags/spbm_v0.2 -b spbm_v0.2`
+  ```
+  git clone https://github.com/BottomRedoxModel/brom_niva_module
+  cd brom_niva_module
+  git checkout tags/spbm_v0.2 -b spbm_v0.2
+  cd ..
+  ```
 
   download [ERSEM] from the official cite.
 
@@ -51,7 +69,7 @@ Then:
 
 3. Make a build 
 
-  Enter SPBM folder and execute `$ bash build_release.sh`
+  Enter SPBM folder and execute `$ bash build_release.sh` - it will make release for the test case using BROM only.
 
 4. Compile the code
 
@@ -68,37 +86,41 @@ Then:
   Right-click in Windows Explorer within the directory where you want to place the SPBM directory, and choose "Git Bash Here", or use PowerShell program.
   At first download SPBM
 
-  `$ git clone https://github.com/BottomRedoxModel/SPBM.git`
-   
-  and switch to the tag spbm_v0.2 typing
-   
-  `$ git checkout tags/spbm_v0.2 -b spbm_v0.2`
+  ```
+  git clone https://github.com/BottomRedoxModel/SPBM.git
+  cd SPBM
+  git checkout tags/spbm_v0.2 -b spbm_v0.2
+  cd ..
+  ```
   
   download all nessesary configuration files and data for SPBM
   
-  `$ git clone https://github.com/BottomRedoxModel/SPBM_data.git`
-  
-  and switch to the tag spbm_v0.2
-   
-  `$ git checkout tags/spbm_v0.2 -b spbm_v0.2`
+  ```
+  git clone https://github.com/BottomRedoxModel/SPBM_data.git
+  cd SPBM_data
+  git checkout tags/spbm_v0.2 -b spbm_v0.2
+  cd ..
+  ```
    
   then download [FABM] from this repository
 
-  `$ git clone https://github.com/BottomRedoxModel/fabm.git`
-  
-  and switch to the tag spbm_v0.2
-   
-  `$ git checkout tags/spbm_v0.2 -b spbm_v0.2`
+  ```
+  git clone https://github.com/BottomRedoxModel/fabm.git
+  cd fabm
+  git checkout tags/spbm_v0.2 -b spbm_v0.2
+  cd ..
+  ```
   
   This [FABM] version has SPBM registered as the host program already.
   
   download BROM - biogeochemistry model
   
-  `$ git clone https://github.com/BottomRedoxModel/brom_niva_module`
-  
-  and switch to the tag spbm_v0.2
-   
-  `$ git checkout tags/spbm_v0.2 -b spbm_v0.2`
+  ```
+  git clone https://github.com/BottomRedoxModel/brom_niva_module
+  cd brom_niva_module
+  git checkout tags/spbm_v0.2 -b spbm_v0.2
+  cd ..
+  ```
 
   download [ERSEM] from the official cite.
   
