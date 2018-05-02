@@ -16,7 +16,7 @@
 module ice_mod
   use fabm_types, only: rk
   use yaml_mod !to use a function mentioned in spbm.h
-  
+
   implicit none
   private
   !NaN value
@@ -62,11 +62,11 @@ contains
     type(ice):: constructor_ice
     integer,intent(in):: number_of_days
     real(rk),dimension(:),intent(in):: ice_thickness
-    
+
     real(rk):: ice_layers_resolution
-    
+
     ice_layers_resolution = _ICE_LAYERS_RESOLUTION_
-    
+
     !NaN
     D_QNAN = 0._rk
     D_QNAN = D_QNAN / D_QNAN
@@ -100,9 +100,9 @@ contains
     integer i
 
     real(rk):: ice_layers_resolution
-    
+
     ice_layers_resolution = _ICE_LAYERS_RESOLUTION_
-    
+
     forall (i = 1:self%number_of_layers)
       self%depth_face(i,:) = ice_thickness-i*ice_layers_resolution
     end forall
@@ -320,9 +320,11 @@ contains
 
     dens_pure = 912000._rk ![g*m-3]
     allocate(bs,source=brine_salinity)
-    allocate(brine_density,source=&
-      self%do_ice_brine_density(brine_salinity))
-    allocate(do_ice_bulk_density(self%number_of_layers,self%number_of_days))
+    allocate(brine_density(&
+      self%number_of_layers,self%number_of_days))
+    brine_density = self%do_ice_brine_density(brine_salinity)
+    allocate(do_ice_bulk_density(&
+      self%number_of_layers,self%number_of_days))
     where (bs < 2._rk) bs = 2._rk! function has spikes below x=1
     do_ice_bulk_density = dens_pure*brine_density*bs/&
     (brine_density*bs-bulk_salinity*(brine_density-dens_pure))
@@ -343,6 +345,8 @@ contains
 
     allocate(do_brine_relative_volume(&
       self%number_of_layers,self%number_of_days))
+    allocate(bulk_salinity(&
+      self%number_of_layers,self%number_of_days))
     !allocate(temporary(&
     !  self%number_of_layers,self%number_of_days))
     select case(is_center)
@@ -354,8 +358,9 @@ contains
       allocate(depth,source=self%depth_face)
     end select
     where (brine_salinity<10._rk) brine_salinity = 10._rk!to fix above 1 values
-    allocate(bulk_salinity,&
-      source=self%do_ice_bulk_salinity(depth,ice_thickness))
+    !allocate(bulk_salinity,&
+    !  source=self%do_ice_bulk_salinity(depth,ice_thickness))
+    bulk_salinity = self%do_ice_bulk_salinity(depth,ice_thickness)
     do_brine_relative_volume = &
       (self%do_ice_bulk_density(brine_salinity,bulk_salinity)*&
        bulk_salinity)/(self%do_ice_brine_density(brine_salinity)*&

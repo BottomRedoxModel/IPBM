@@ -3,8 +3,9 @@
 mkdir -p build
 rm -r build/*
 CWD=`pwd`
-cp ../IPBM_data/laptev/* build &&
+cp ../SPBM_data/laptev/* build &&
 cd build && cmake $CWD/src -DFABM_BASE=$FABMDIR \
-                           -DFABM_ERSEM_BASE=$CWD/../ERSEM \
--DFABM_NIVA_BASE=$CWD/../brom_niva_module -DCMAKE_BUILD_TYPE=Debug
+                           -DFABM_ERSEM_BASE=$ERSEMDIR \
+                           -DFABM_NIVA_BASE=$BROMDIR \
+                           -DCMAKE_BUILD_TYPE=Debug \
                            #-DERSEM_USE_IRON=ON \

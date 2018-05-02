@@ -87,7 +87,7 @@ contains
   !initialize spbm
   !
   subroutine initialize_spbm()
-    real(rk),allocatable,dimension(:):: air_ice_indexes
+    integer ,allocatable,dimension(:):: air_ice_indexes
     real(rk),allocatable,dimension(:):: zeros
     !NaN value
     !REAL(rk), PARAMETER :: D_QNAN = &
@@ -204,7 +204,7 @@ contains
     call configurate_state_variables()
     call fabm_initialize_state(fabm_model,1,number_of_layers)
     allocate(air_ice_indexes,source=&
-             standard_vars%get_column("air_ice_indexes"))
+             int(standard_vars%get_column("air_ice_indexes")))
     allocate(porosity(number_of_layers))
     porosity=standard_vars%get_column("porosity",1)
     !recalculating concentrations in the sediments
@@ -940,7 +940,7 @@ contains
     real(rk),dimension(number_of_layers)  :: porosity
     real(rk),dimension(number_of_layers-1):: dz
     !indices of layer interfaces in the sediments including the SWI
-    real(rk),dimension(:),allocatable:: k_sed1
+    integer ,dimension(:),allocatable:: k_sed1
     real(rk),dimension(:),allocatable:: w_b
     real(rk),dimension(:),allocatable:: u_b
     real(rk) brine_release
@@ -993,7 +993,7 @@ contains
     standard_vars%get_column("porosity",id)
     !indices of sediments
     allocate(k_sed1(bbl_sed_index))
-    k_sed1 = standard_vars%get_column("k_sed1")
+    k_sed1 = int(standard_vars%get_column("k_sed1"))
     !vertical velocities in the sediments, depends on porosity, constant
     allocate(w_b(bbl_sed_index))
     w_b = standard_vars%get_column("w_b")
@@ -1289,7 +1289,7 @@ contains
     integer ,intent(in):: bbl_sed_index
     integer ,intent(in):: ice_water_index
 
-    real(rk),dimension(bbl_sed_index),intent(in):: k_sed1
+    integer ,dimension(bbl_sed_index),intent(in):: k_sed1
     real(rk),dimension(bbl_sed_index),intent(in):: w_b,u_b
 
     real(rk)                         ,intent(in):: dphidz_SWI
