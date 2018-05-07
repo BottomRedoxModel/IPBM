@@ -455,7 +455,7 @@ contains
     allocate(depth_center(length, time))
     depth_center = self%get_array("middle_layer_depths")
     !allocate(depth_center,source=self%get_array("middle_layer_depths"))
-    allocate(depth_boundary(length, time+1))
+    allocate(depth_boundary(length+1, time))
     depth_boundary = self%get_array(_DEPTH_ON_BOUNDARY_)
     !allocate(depth_boundary,source=self%get_array(_DEPTH_ON_BOUNDARY_))
     allocate(swi_depth,source = depth_boundary(swi_index,:))
