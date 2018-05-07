@@ -1,6 +1,6 @@
 #define _PURE_ERSEM_ 0
 #define _PURE_MAECS_ 0
-#define _IS_SHORTWAVE_RADIATION_IS_PAR_ 0
+#define _IS_SHORTWAVE_RADIATION_IS_PAR_ 1
 
 #define _LINE_      write(*,*) repeat('*',79)
 #define _PAUSE_     read(*,*)
