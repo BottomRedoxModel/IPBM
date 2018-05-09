@@ -1680,17 +1680,17 @@ contains
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
       if (state_vars(i)%name.eq._DIC_) then
-        call do_relaxation(1930._rk,ice_water_index-1,i)
-        call do_relaxation(2280._rk,bbl_sed_index,i)
+        !call do_relaxation(1930._rk,ice_water_index-1,i)
+        !call do_relaxation(2280._rk,bbl_sed_index,i)
       else if (state_vars(i)%name.eq._Alk_) then
-        call do_relaxation(2000._rk,ice_water_index-1,i)
-        call do_relaxation(2350._rk,bbl_sed_index,i)
+        !call do_relaxation(2000._rk,ice_water_index-1,i)
+        !call do_relaxation(2350._rk,bbl_sed_index,i)
       else if (state_vars(i)%name.eq._PO4_) then
         call do_relaxation(sinusoidal(day,1._rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._NO3_) then
-        call do_relaxation(sinusoidal(day,1._rk),ice_water_index-1,i)
+        call do_relaxation(sinusoidal(day,30._rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._Si_) then
-        call do_relaxation(sinusoidal(day,3._rk),ice_water_index-1,i)
+        call do_relaxation(sinusoidal(day,20._rk),ice_water_index-1,i)
       !else if (state_vars(i)%name.eq._O2_) then
       !  call do_relaxation(sinusoidal(day,330.0_rk),ice_water_index-1,i)
       !else if (state_vars(i)%name.eq._PON_) then

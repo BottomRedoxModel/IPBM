@@ -16,13 +16,13 @@
 
 !porosity parameters:
 !(Soetaert etc., 1996)
-#define _MAX_POROSITY_    0.95_rk
-#define _MIN_POROSITY_    0.80_rk
+#define _MAX_POROSITY_    0.45_rk
+#define _MIN_POROSITY_    0.35_rk
 #define _POROSITY_DECAY_  0.04_rk
-#define _BURIAL_VELOCITY_ 1.e-10_rk
+#define _BURIAL_VELOCITY_ 0.e-10_rk
 
 !molecular diffusivity parameters:
-#define _INFINITE_DILLUTION_MOLECULAR_DIFFUSIVITY_ 1.e-9_rk 
+#define _INFINITE_DILLUTION_MOLECULAR_DIFFUSIVITY_ 1.e-8_rk 
 !(Boudreau, 1997)
 #define _RELATIVE_DYNAMIC_VISCOSITY_               0.94_rk
 !bioturbation diffusivity parameters:

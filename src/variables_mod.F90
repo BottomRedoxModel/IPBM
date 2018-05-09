@@ -534,8 +534,12 @@ contains
         max_porosity-min_porosity)*exp(-1._rk*(&
         depth_boundary(1:swi_index,i)-swi_depth(i))/&
         porosity_decay)
+      if (ice_water_index==air_ice_indexes(i)) then
+        porosity(ice_water_index,i) = 1._rk
+      else
+        porosity(ice_water_index,i) = 0.5_rk
+      end if       
     end do
-    porosity(ice_water_index,:) = 0.5_rk
     porosity(ice_water_index+1:,:) = &
           self%type_ice%do_brine_relative_volume(&
           .false.,self%get_column(_ICE_THICKNESS_))
