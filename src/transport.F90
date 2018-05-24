@@ -344,7 +344,9 @@ contains
       !organic compounds
       call find_set_state_variable(_Phy_,&
         is_solid = .true.,density = 1.5E7_rk)
-      call find_set_state_variable(_PON_,&
+      call find_set_state_variable(_POML_,&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(_POMR_,&
         is_solid = .true.,density = 1.5E7_rk)
       !small-size POM
       call find_set_state_variable(trim(_SmallPOM_) // "_c",&

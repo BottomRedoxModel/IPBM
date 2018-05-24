@@ -13,7 +13,7 @@
 #define _WIND_SPEED_				5._rk
 #define _AIR_CO2_					380._rk
 
-#define _FABM_YAML_NAME_			get_spbm_string_parameter('fabm_yaml_name')
+#define _FABM_YAML_NAME_			      get_spbm_string_parameter('fabm_yaml_name')
 #define _FILE_NAME_                 get_spbm_string_parameter('input_file_name')
 #define _INITIALIZATION_SINCE_YEAR_ get_spbm_real_parameter('initialization_since_year') 
 #define _DEPTH_ON_BOUNDARY_         get_spbm_string_parameter('depth_on_boundary')
@@ -68,7 +68,8 @@
 #define _MnS_                       get_spbm_string_parameter('MnS')
 #define _Sipart_                    get_spbm_string_parameter('Sipart')
 #define _Phy_                       get_spbm_string_parameter('Phy')
-#define _PON_                       get_spbm_string_parameter('PON')
+#define _POML_                      get_spbm_string_parameter('POML')
+#define _POMR_                      get_spbm_string_parameter('POMR')
 #define _SmallPOM_                  get_spbm_string_parameter('SmallPOM')
 #define _MediumPOM_                 get_spbm_string_parameter('MediumPOM')
 #define _LargePOM_                  get_spbm_string_parameter('LargePOM')
