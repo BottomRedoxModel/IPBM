@@ -538,7 +538,7 @@ contains
         porosity(ice_water_index,i) = 1._rk
       else
         porosity(ice_water_index,i) = 0.5_rk
-      end if       
+      end if
     end do
     porosity(ice_water_index+1:,:) = &
           self%type_ice%do_brine_relative_volume(&

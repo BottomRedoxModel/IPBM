@@ -1728,7 +1728,6 @@ contains
 
     dcc = value-state_vars(i)%value(index)
     state_vars(i)%value(index) = state_vars(i)%value(index)+dcc
-
   end subroutine do_relaxation_single
   !
   !indexes from bottom upwards
