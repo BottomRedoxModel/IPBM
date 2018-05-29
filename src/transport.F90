@@ -20,6 +20,8 @@ module transport
   use fabm_config
   use fabm_driver
   use fabm_types
+  use input_mod
+  use types_mod,only: variable, variable_2d
   use variables_mod,only: spbm_standard_variables,&
                           spbm_state_variable
   use yaml_mod !to use a function mentioned in spbm.h
@@ -54,6 +56,9 @@ module transport
   !for the ERSEM carbonate
   type(type_bulk_variable_id)      ,save:: rho_id
   type(type_horizontal_variable_id),save:: lon_id,lat_id,ws_id
+  !for relaxation
+  type(type_input):: relaxation_list
+
 #if _PURE_ERSEM_ == 1
   !bdepth - bottom depth
   real(rk)                         ,target:: bdepth
@@ -112,6 +117,7 @@ contains
     !initializing spbm standard_variables
     !makes grid, it starts from bottom (1) to surface (end point)
     standard_vars = spbm_standard_variables()
+    relaxation_list = type_input(_FILE_NAME_)
     !_PAUSE_
     number_of_layers = standard_vars%get_value(&
                            "number_of_layers")
@@ -1676,6 +1682,8 @@ contains
     integer,intent(in):: ice_water_index,bbl_sed_index
     integer,intent(in):: day
 
+    class(variable),allocatable:: relaxation_variable
+
     integer number_of_vars
     integer i
 
@@ -1688,9 +1696,16 @@ contains
         !call do_relaxation(2000._rk,ice_water_index-1,i)
         !call do_relaxation(2350._rk,bbl_sed_index,i)
       else if (state_vars(i)%name.eq._PO4_) then
-        call do_relaxation(sinusoidal(day,1._rk),ice_water_index-1,i)
+        !call do_relaxation(sinusoidal(day,1._rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._NO3_) then
-        call do_relaxation(sinusoidal(day,30._rk),ice_water_index-1,i)
+        call relaxation_list%get_var(_NO3_rel_,relaxation_variable)
+        select type(relaxation_variable)
+        class is(variable_2d)
+          call do_relaxation(bbl_sed_index,ice_water_index,i,&
+                             relaxation_variable%value(&
+                             bbl_sed_index:ice_water_index,day))
+        end select
+        !call do_relaxation(sinusoidal(day,30._rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._Si_) then
         call do_relaxation(sinusoidal(day,20._rk),ice_water_index-1,i)
       !else if (state_vars(i)%name.eq._O2_) then

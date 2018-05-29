@@ -81,3 +81,6 @@
 #define _MesoZoo_                   get_spbm_string_parameter('MesoZoo')
 #define _MicroZoo_                  get_spbm_string_parameter('MicroZoo')
 #define _NanoFlag_                  get_spbm_string_parameter('NanoFlag')
+
+#define _NO3_rel_                   get_spbm_string_parameter('NO3rel')
+
