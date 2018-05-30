@@ -117,7 +117,7 @@ contains
     !initializing spbm standard_variables
     !makes grid, it starts from bottom (1) to surface (end point)
     standard_vars = spbm_standard_variables()
-    relaxation_list = type_input(_FILE_NAME_)
+    relaxation_list = type_input(_RELAXATION_FILE_NAME_)
     !_PAUSE_
     number_of_layers = standard_vars%get_value(&
                            "number_of_layers")
@@ -953,7 +953,7 @@ contains
     real(rk),dimension(:),allocatable:: u_b
     real(rk) brine_release
     real(rk) dphidz_SWI
-    integer i,j,bbl_sed_index,ice_water_index
+    integer i,j,bbl_sed_index,ice_water_index,water_bbl_index
     integer number_of_circles
     !fabm logical parameters
     logical:: repair=.true.,valid
@@ -967,6 +967,7 @@ contains
 
     bbl_sed_index   = standard_vars%get_value("bbl_sediments_index")
     ice_water_index = standard_vars%get_value("ice_water_index")
+    water_bbl_index = standard_vars%get_value("water_bbl_index")
     !Factor to convert [mass per unit total volume]
     !to [mass per unit volume pore water] for solutes in sediments
     !first zero for gotm diff solver
@@ -1021,7 +1022,7 @@ contains
     ! in cm / day
     ice_algae_velocity = _IALGAE_VELOCITY_
     !
-    call relaxation(ice_water_index,bbl_sed_index,day)
+    call relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day)
 
     do i = 1,number_of_circles
 
@@ -1678,37 +1679,75 @@ contains
   !
   !
   !
-  subroutine relaxation(ice_water_index,bbl_sed_index,day)
-    integer,intent(in):: ice_water_index,bbl_sed_index
+  subroutine relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day)
+    integer,intent(in):: ice_water_index,bbl_sed_index,water_bbl_index
     integer,intent(in):: day
 
     class(variable),allocatable:: relaxation_variable
 
     integer number_of_vars
     integer i
+    real(rk):: rp
+
+    rp = _RELAXATION_PARAMETER_
 
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
       if (state_vars(i)%name.eq._DIC_) then
+        call relaxation_list%get_var(_DIC_rel_,relaxation_variable)
+        select type(relaxation_variable)
+        class is(variable_2d)
+          call do_relaxation(water_bbl_index,ice_water_index,i,&
+                             relaxation_variable%value(:,day),rp)
+        end select
+        deallocate(relaxation_variable)
         !call do_relaxation(1930._rk,ice_water_index-1,i)
         !call do_relaxation(2280._rk,bbl_sed_index,i)
       else if (state_vars(i)%name.eq._Alk_) then
+        call relaxation_list%get_var(_Alk_rel_,relaxation_variable)
+        select type(relaxation_variable)
+        class is(variable_2d)
+          call do_relaxation(water_bbl_index,ice_water_index,i,&
+                             relaxation_variable%value(:,day),rp)
+        end select
+        deallocate(relaxation_variable)
         !call do_relaxation(2000._rk,ice_water_index-1,i)
         !call do_relaxation(2350._rk,bbl_sed_index,i)
       else if (state_vars(i)%name.eq._PO4_) then
+        call relaxation_list%get_var(_PO4_rel_,relaxation_variable)
+        select type(relaxation_variable)
+        class is(variable_2d)
+          call do_relaxation(water_bbl_index,ice_water_index,i,&
+                             relaxation_variable%value(:,day),rp)
+        end select
+        deallocate(relaxation_variable)
         !call do_relaxation(sinusoidal(day,1._rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._NO3_) then
         call relaxation_list%get_var(_NO3_rel_,relaxation_variable)
         select type(relaxation_variable)
         class is(variable_2d)
-          call do_relaxation(bbl_sed_index,ice_water_index,i,&
-                             relaxation_variable%value(&
-                             bbl_sed_index:ice_water_index,day))
+          call do_relaxation(water_bbl_index,ice_water_index,i,&
+                             relaxation_variable%value(:,day),rp)
         end select
+        deallocate(relaxation_variable)
         !call do_relaxation(sinusoidal(day,30._rk),ice_water_index-1,i)
       else if (state_vars(i)%name.eq._Si_) then
-        call do_relaxation(sinusoidal(day,20._rk),ice_water_index-1,i)
-      !else if (state_vars(i)%name.eq._O2_) then
+        call relaxation_list%get_var(_Si_rel_,relaxation_variable)
+        select type(relaxation_variable)
+        class is(variable_2d)
+          call do_relaxation(water_bbl_index,ice_water_index,i,&
+                             relaxation_variable%value(:,day),rp)
+        end select
+        deallocate(relaxation_variable)
+        !call do_relaxation(sinusoidal(day,20._rk),ice_water_index-1,i)
+      else if (state_vars(i)%name.eq._O2_) then
+        call relaxation_list%get_var(_O2_rel_,relaxation_variable)
+        select type(relaxation_variable)
+        class is(variable_2d)
+          call do_relaxation(water_bbl_index,ice_water_index,i,&
+                             relaxation_variable%value(:,day),rp)
+        end select
+        deallocate(relaxation_variable)
       !  call do_relaxation(sinusoidal(day,330.0_rk),ice_water_index-1,i)
       !else if (state_vars(i)%name.eq._PON_) then
       !  call do_relaxation(12.5_rk,ice_water_index-1,i)
@@ -1734,31 +1773,33 @@ contains
   !
   !
   !
-  subroutine do_relaxation_single(value,index,i)
+  subroutine do_relaxation_single(value,index,i,rp)
     real(rk),intent(in):: value
     integer ,intent(in):: index
     integer, intent(in):: i
+    real(rk),intent(in):: rp
 
     real(rk) dcc
 
     dcc = value-state_vars(i)%value(index)
-    state_vars(i)%value(index) = state_vars(i)%value(index)+dcc
+    state_vars(i)%value(index) = state_vars(i)%value(index)+dcc*rp
   end subroutine do_relaxation_single
   !
   !indexes from bottom upwards
   !
-  subroutine do_relaxation_array(from,till,i,value)
+  subroutine do_relaxation_array(from,till,i,value,rp)
     integer ,intent(in):: from
     integer ,intent(in):: till
     integer, intent(in):: i
     real(rk),dimension(from:till),intent(in):: value
+    real(rk),intent(in):: rp
 
     integer j
     real(rk) dcc
 
     do j = from,till
       dcc = value(j)-state_vars(i)%value(j)
-      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
+      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc*rp
     end do
   end subroutine do_relaxation_array
   !

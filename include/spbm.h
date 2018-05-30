@@ -82,5 +82,12 @@
 #define _MicroZoo_                  get_spbm_string_parameter('MicroZoo')
 #define _NanoFlag_                  get_spbm_string_parameter('NanoFlag')
 
+#define _RELAXATION_FILE_NAME_      get_spbm_string_parameter('relaxation_file_name')
+#define _RELAXATION_PARAMETER_      get_spbm_real_parameter('relaxation_parameter')
+#define _DIC_rel_                   get_spbm_string_parameter('DICrel')
+#define _Alk_rel_                   get_spbm_string_parameter('Alkrel')
+#define _PO4_rel_                   get_spbm_string_parameter('PO4rel')
 #define _NO3_rel_                   get_spbm_string_parameter('NO3rel')
+#define _Si_rel_                    get_spbm_string_parameter('Sirel')
+#define _O2_rel_                    get_spbm_string_parameter('O2rel')
 

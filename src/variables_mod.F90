@@ -195,9 +195,9 @@ contains
     call self%add_item(new_var)
     new_var = alone_variable("water_bbl_index","water_bbl_index",'Layer',water_bbl)
     call self%add_item(new_var)
-    new_var = alone_variable("bbl_sediments_index","water_bbl_index",'Layer',bbl_sediments)
+    new_var = alone_variable("bbl_sediments_index","bbl_sediments_index",'Layer',bbl_sediments)
     call self%add_item(new_var)
-    new_var = alone_variable("number_of_boundaries","water_bbl_index",'Layer',total_boundaries)
+    new_var = alone_variable("number_of_boundaries","number_of_boundaries",'Layer',total_boundaries)
     call self%add_item(new_var)
 
     select type(var)
