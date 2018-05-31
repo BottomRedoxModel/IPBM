@@ -1683,8 +1683,6 @@ contains
     integer,intent(in):: ice_water_index,bbl_sed_index,water_bbl_index
     integer,intent(in):: day
 
-    class(variable),allocatable:: relaxation_variable
-
     integer number_of_vars
     integer i
     real(rk):: rp
@@ -1694,69 +1692,17 @@ contains
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
       if (state_vars(i)%name.eq._DIC_) then
-        call relaxation_list%get_var(_DIC_rel_,relaxation_variable)
-        select type(relaxation_variable)
-        class is(variable_2d)
-          call do_relaxation(water_bbl_index,ice_water_index,i,&
-                             relaxation_variable%value(:,day),rp)
-        end select
-        deallocate(relaxation_variable)
-        !call do_relaxation(1930._rk,ice_water_index-1,i)
-        !call do_relaxation(2280._rk,bbl_sed_index,i)
+        call read_from_nc(_DIC_rel_,i,rp,water_bbl_index,ice_water_index)
       else if (state_vars(i)%name.eq._Alk_) then
-        call relaxation_list%get_var(_Alk_rel_,relaxation_variable)
-        select type(relaxation_variable)
-        class is(variable_2d)
-          call do_relaxation(water_bbl_index,ice_water_index,i,&
-                             relaxation_variable%value(:,day),rp)
-        end select
-        deallocate(relaxation_variable)
-        !call do_relaxation(2000._rk,ice_water_index-1,i)
-        !call do_relaxation(2350._rk,bbl_sed_index,i)
+        call read_from_nc(_Alk_rel_,i,rp,water_bbl_index,ice_water_index)
       else if (state_vars(i)%name.eq._PO4_) then
-        call relaxation_list%get_var(_PO4_rel_,relaxation_variable)
-        select type(relaxation_variable)
-        class is(variable_2d)
-          call do_relaxation(water_bbl_index,ice_water_index,i,&
-                             relaxation_variable%value(:,day),rp)
-        end select
-        deallocate(relaxation_variable)
-        !call do_relaxation(sinusoidal(day,1._rk),ice_water_index-1,i)
+        call read_from_nc(_PO4_rel_,i,rp,water_bbl_index,ice_water_index)
       else if (state_vars(i)%name.eq._NO3_) then
-        call relaxation_list%get_var(_NO3_rel_,relaxation_variable)
-        select type(relaxation_variable)
-        class is(variable_2d)
-          call do_relaxation(water_bbl_index,ice_water_index,i,&
-                             relaxation_variable%value(:,day),rp)
-        end select
-        deallocate(relaxation_variable)
-        !call do_relaxation(sinusoidal(day,30._rk),ice_water_index-1,i)
+        call read_from_nc(_NO3_rel_,i,rp,water_bbl_index,ice_water_index)
       else if (state_vars(i)%name.eq._Si_) then
-        call relaxation_list%get_var(_Si_rel_,relaxation_variable)
-        select type(relaxation_variable)
-        class is(variable_2d)
-          call do_relaxation(water_bbl_index,ice_water_index,i,&
-                             relaxation_variable%value(:,day),rp)
-        end select
-        deallocate(relaxation_variable)
-        !call do_relaxation(sinusoidal(day,20._rk),ice_water_index-1,i)
+        call read_from_nc(_Si_rel_,i,rp,water_bbl_index,ice_water_index)
       else if (state_vars(i)%name.eq._O2_) then
-        call relaxation_list%get_var(_O2_rel_,relaxation_variable)
-        select type(relaxation_variable)
-        class is(variable_2d)
-          call do_relaxation(water_bbl_index,ice_water_index,i,&
-                             relaxation_variable%value(:,day),rp)
-        end select
-        deallocate(relaxation_variable)
-      !  call do_relaxation(sinusoidal(day,330.0_rk),ice_water_index-1,i)
-      !else if (state_vars(i)%name.eq._PON_) then
-      !  call do_relaxation(12.5_rk,ice_water_index-1,i)
-      !else if (state_vars(i)%name.eq."B_CH4_CH4") then
-      !  call do_relaxation(10._rk,bbl_sed_index,i)
-      !  call do_relaxation(10._rk,bbl_sed_index+1,i)
-      !  call do_relaxation(10._rk,bbl_sed_index+2,i)
-      !  call do_relaxation(10._rk,bbl_sed_index+3,i)
-      !  call do_relaxation(10._rk,bbl_sed_index+4,i)
+        call read_from_nc(_O2_rel_,i,rp,water_bbl_index,ice_water_index)
       end if
     end do
   contains
@@ -1769,6 +1715,28 @@ contains
                     (1._rk+sin(2._rk*_PI_*(&
                     day-60._rk)/365._rk))*multiplier/2
     end function sinusoidal
+
+    subroutine read_from_nc(name,i,rp,&
+                            water_bbl_index,ice_water_index)
+      character(len=*),intent(in):: name
+      integer ,intent(in):: i
+      real(rk),intent(in):: rp
+      integer ,intent(in):: ice_water_index,water_bbl_index
+
+      class(variable),allocatable:: relaxation_variable
+
+        if (name(1:4) == "none") then
+          return
+        else
+          call relaxation_list%get_var(name,relaxation_variable)
+          select type(relaxation_variable)
+          class is(variable_2d)
+            call do_relaxation(water_bbl_index,ice_water_index,i,&
+                               relaxation_variable%value(:,day),rp)
+          end select
+          deallocate(relaxation_variable)
+        end if
+    end subroutine read_from_nc
   end subroutine
   !
   !

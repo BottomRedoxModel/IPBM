@@ -1,17 +1,7 @@
-#define _PURE_ERSEM_ 0
-#define _PURE_MAECS_ 0
-#define _IS_SHORTWAVE_RADIATION_IS_PAR_ 1
-
 #define _LINE_      write(*,*) repeat('*',79)
 #define _PAUSE_     read(*,*)
 
 #define _SPBM_FILE_NAME_ 'spbm.yaml'
-
-#define _RE_DAY_					100
-#define _RE_YEAR_					10
-#define _SECONDS_PER_CIRCLE_        300
-#define _WIND_SPEED_				5._rk
-#define _AIR_CO2_					380._rk
 
 #define _FABM_YAML_NAME_			      get_spbm_string_parameter('fabm_yaml_name')
 #define _FILE_NAME_                 get_spbm_string_parameter('input_file_name')
