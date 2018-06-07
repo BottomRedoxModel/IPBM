@@ -5,10 +5,6 @@
 #define _DIRICHLET_ 0
 #define _NEUMANN_   1
 
-#define _RE_DAY_					100
-#define _RE_YEAR_					10
-#define _SECONDS_PER_CIRCLE_        300
-
 #define _WIND_SPEED_				5._rk
 #define _AIR_CO2_					380._rk
 
@@ -22,7 +18,6 @@
 !-Radiative transfer models suggest an average value ~0.5 but with ~10 % variability
 !-at mid / high latitudes depending on season, latitude, and wind speed
 !-see Mobley and Boss(2012), Figs. 5b, 8b.
-#define _IS_SHORTWAVE_RADIATION_IS_PAR_ 1
 #define _PAR_PART_        0.5_rk
 
 !porosity parameters:

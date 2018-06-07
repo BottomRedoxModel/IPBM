@@ -17,6 +17,11 @@
 #define _ICE_SURFACE_TEMPERATURE_   get_spbm_string_parameter('ice_surface_temperature')
 #define _SHORTWAVE_RADIATION_       get_spbm_string_parameter('shortwave_radiation')
 
+#define _RE_DAY_					          get_spbm_real_parameter('repeat_day') 
+#define _RE_YEAR_					          get_spbm_real_parameter('repeat_year')
+#define _SECONDS_PER_CIRCLE_        get_spbm_real_parameter('seconds_per_circle')
+#define _IS_SHORTWAVE_RADIATION_IS_PAR_ get_spbm_real_parameter('is_par')
+
 #define _REQUIRED_VOLUME_           get_spbm_real_parameter('required_volume')
 #define _IALGAE_VELOCITY_           get_spbm_real_parameter('ice_algae_velocity')
 
@@ -46,6 +51,7 @@
 #define _Si_                        get_spbm_string_parameter('Si')
 
 #define _O2_                        get_spbm_string_parameter('O2')
+#define _CH4_                       get_spbm_string_parameter('CH4')
 
 #define _CaCO3_                     get_spbm_string_parameter('CaCO3')
 #define _S0_                        get_spbm_string_parameter('S0')
@@ -80,4 +86,6 @@
 #define _NO3_rel_                   get_spbm_string_parameter('NO3rel')
 #define _Si_rel_                    get_spbm_string_parameter('Sirel')
 #define _O2_rel_                    get_spbm_string_parameter('O2rel')
+
+#define _CH4_flux_                  get_spbm_string_parameter('CH4flux')
 

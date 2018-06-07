@@ -33,6 +33,7 @@ module transport
   integer previous_ice_index
   integer number_of_parameters
   integer number_of_layers
+  integer seconds_per_circle
   integer ,allocatable,dimension(:):: ice_algae_ids
   real(rk),allocatable,dimension(:):: depth
   real(rk),allocatable,dimension(:):: porosity
@@ -107,6 +108,7 @@ contains
     D_QNAN = D_QNAN / D_QNAN
 
     call read_spbm_configuration()
+    seconds_per_circle = int(_SECONDS_PER_CIRCLE_)
 
     !initializing fabm from fabm.yaml file
     _LINE_
@@ -490,7 +492,7 @@ contains
     day = standard_vars%first_day()
     call initial_date(day,year)
     !first day cycle
-    call first_day_circle(_RE_DAY_,ice_water_index,&
+    call first_day_circle(int(_RE_DAY_),ice_water_index,&
                           water_bbl_index,bbl_sediments_index,&
                           indices,indices_faces,day,&
                           surface_radiation)
@@ -722,7 +724,7 @@ contains
              standard_vars%get_column("air_ice_indexes"))
     day = inday; year = inyear;
     days_in_year = 365+merge(1,0,(mod(year,4).eq.0))
-    counter = days_in_year*_RE_YEAR_
+    counter = days_in_year*int(_RE_YEAR_)
 
     netcdf_ice = type_output(fabm_model,standard_vars,'ice_year.nc',&
                          ice_water_index,number_of_layers,&
@@ -1011,20 +1013,20 @@ contains
     !distance between centers of the layers
     dz = standard_vars%get_column("dz",id)
 
-    if (mod(60*60*24,_SECONDS_PER_CIRCLE_)/=0) then
-      call fatal_error("Check _SECONDS_PER_CIRCLE_",&
-                       "should fit 86400/_SECONDS_PER_CIRCLE_=integer")
+    if (mod(60*60*24,seconds_per_circle)/=0) then
+      call fatal_error("Check seconds_per_circle",&
+                       "should fit 86400/seconds_per_circle=integer")
     else
-      number_of_circles = int(60*60*24/_SECONDS_PER_CIRCLE_)
+      number_of_circles = int(60*60*24/seconds_per_circle)
     end if
     call recalculate_ice(id,brine_release)
 
     ! in cm / day
     ice_algae_velocity = _IALGAE_VELOCITY_
-    !
-    call relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day)
 
     do i = 1,number_of_circles
+      !
+      call relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day)
 
       !diffusion
       !dcc = 0._rk
@@ -1071,7 +1073,7 @@ contains
         if (state_vars(j)%is_solid.neqv..true.) then
           !sediments_domain
           increment(:bbl_sed_index-1,j) &
-            = _SECONDS_PER_CIRCLE_*increment(:bbl_sed_index-1,j)
+            = seconds_per_circle*increment(:bbl_sed_index-1,j)
           state_vars(j)%value(:bbl_sed_index-1)&
             = (state_vars(j)%value(:bbl_sed_index-1)&
             + increment(:bbl_sed_index-1,j))&
@@ -1079,11 +1081,11 @@ contains
           !water domain
           state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
             = state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
-            + _SECONDS_PER_CIRCLE_&
+            + seconds_per_circle&
             * increment(bbl_sed_index:ice_water_index-1,j)
           !ice_domain
           increment(ice_water_index:surface_index-1,j) &
-            = _SECONDS_PER_CIRCLE_*increment(ice_water_index:surface_index-1,j)
+            = seconds_per_circle*increment(ice_water_index:surface_index-1,j)
           state_vars(j)%value(ice_water_index:surface_index-1)&
             = (state_vars(j)%value(ice_water_index:surface_index-1)&
             + increment(ice_water_index:surface_index-1,j))&
@@ -1092,7 +1094,7 @@ contains
         else
           !sediments domain
           increment(:bbl_sed_index-1,j) &
-            = _SECONDS_PER_CIRCLE_*increment(:bbl_sed_index-1,j)
+            = seconds_per_circle*increment(:bbl_sed_index-1,j)
           state_vars(j)%value(:bbl_sed_index-1)&
             = (state_vars(j)%value(:bbl_sed_index-1)&
             + increment(:bbl_sed_index-1,j))&
@@ -1100,12 +1102,12 @@ contains
           !water domain
           state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
             = state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
-            + _SECONDS_PER_CIRCLE_&
+            + seconds_per_circle&
             * increment(bbl_sed_index:ice_water_index-1,j)
           !ice_domain
           !porosity is needed to constrain production
           increment(ice_water_index:surface_index-1,j)&
-            = _SECONDS_PER_CIRCLE_&
+            = seconds_per_circle&
             * increment(ice_water_index:surface_index-1,j)&
             * porosity(ice_water_index:surface_index-1)
           state_vars(j)%value(ice_water_index:surface_index-1)&
@@ -1117,7 +1119,7 @@ contains
       !do j = 1,number_of_parameters
       !    state_vars(j)%value(:surface_index-1) = &
       !      state_vars(j)%value(:surface_index-1)+&
-      !      _SECONDS_PER_CIRCLE_*increment(:,j)
+      !      seconds_per_circle*increment(:,j)
       !end do
       !call check_array("after_fabm_do",surface_index,id,i)
       call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
@@ -1250,7 +1252,7 @@ contains
     do i = 1,number_of_parameters
       temporary(:surface_index-1,i) = do_diffusive(&
           N       = surface_index-1,&
-          dt      = _SECONDS_PER_CIRCLE_,&
+          dt      = seconds_per_circle,&
           cnpar   = 0.6_rk,&
           posconc = 1,&
           h    = layer_thicknesses(:surface_index),&
@@ -1278,7 +1280,7 @@ contains
           pFSWIdw_solids = pFSWIdw_solids)
       increment(:surface_index-1,i) = temporary(1:surface_index-1,i)-&
                                       state_vars(i)%value(:surface_index-1)/&
-                                      _SECONDS_PER_CIRCLE_
+                                      seconds_per_circle
       state_vars(i)%value(1:surface_index-1) = &
                           temporary(1:surface_index-1,i)
     !end forall
@@ -1529,7 +1531,7 @@ contains
     do i = 1,number_of_parameters
       do k = 1,surface_index-1
           state_vars(i)%value(k) = state_vars(i)%value(k)+&
-                                   _SECONDS_PER_CIRCLE_*dcc(k,i)
+                                   seconds_per_circle*dcc(k,i)
       end do
     end do
     !call state_vars(1)%print_state_variable()
@@ -1681,7 +1683,7 @@ contains
   !
   subroutine relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day)
     integer,intent(in):: ice_water_index,bbl_sed_index,water_bbl_index
-    integer,intent(in):: day
+    integer,intent(in):: day ! from 1 till 365/366
 
     integer number_of_vars
     integer i
@@ -1692,17 +1694,19 @@ contains
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
       if (state_vars(i)%name.eq._DIC_) then
-        call read_from_nc(_DIC_rel_,i,rp,water_bbl_index,ice_water_index)
+        call read_from_nc(_DIC_rel_,i,rp,water_bbl_index,ice_water_index,0)
       else if (state_vars(i)%name.eq._Alk_) then
-        call read_from_nc(_Alk_rel_,i,rp,water_bbl_index,ice_water_index)
+        call read_from_nc(_Alk_rel_,i,rp,water_bbl_index,ice_water_index,0)
       else if (state_vars(i)%name.eq._PO4_) then
-        call read_from_nc(_PO4_rel_,i,rp,water_bbl_index,ice_water_index)
+        call read_from_nc(_PO4_rel_,i,rp,water_bbl_index,ice_water_index,0)
       else if (state_vars(i)%name.eq._NO3_) then
-        call read_from_nc(_NO3_rel_,i,rp,water_bbl_index,ice_water_index)
+        call read_from_nc(_NO3_rel_,i,rp,water_bbl_index,ice_water_index,0)
       else if (state_vars(i)%name.eq._Si_) then
-        call read_from_nc(_Si_rel_,i,rp,water_bbl_index,ice_water_index)
+        call read_from_nc(_Si_rel_,i,rp,water_bbl_index,ice_water_index,0)
       else if (state_vars(i)%name.eq._O2_) then
-        call read_from_nc(_O2_rel_,i,rp,water_bbl_index,ice_water_index)
+        call read_from_nc(_O2_rel_,i,rp,water_bbl_index,ice_water_index,0)
+      else if (state_vars(i)%name.eq._CH4_) then
+        call read_from_nc(_CH4_flux_,i,rp,water_bbl_index,ice_water_index,1)
       end if
     end do
   contains
@@ -1717,11 +1721,13 @@ contains
     end function sinusoidal
 
     subroutine read_from_nc(name,i,rp,&
-                            water_bbl_index,ice_water_index)
+                            water_bbl_index,ice_water_index,&
+                            isflux)
       character(len=*),intent(in):: name
       integer ,intent(in):: i
       real(rk),intent(in):: rp
       integer ,intent(in):: ice_water_index,water_bbl_index
+      integer ,intent(in):: isflux ! 1 is yes
 
       class(variable),allocatable:: relaxation_variable
 
@@ -1731,12 +1737,29 @@ contains
           call relaxation_list%get_var(name,relaxation_variable)
           select type(relaxation_variable)
           class is(variable_2d)
-            call do_relaxation(water_bbl_index,ice_water_index,i,&
-                               relaxation_variable%value(:,day),rp)
+            if (isflux == 1) then
+              call do_flux(water_bbl_index,ice_water_index,i,&
+                                 relaxation_variable%value(:,day))
+            else
+              call do_relaxation(water_bbl_index,ice_water_index,i,&
+                                 relaxation_variable%value(:,day),rp)
+            end if
           end select
           deallocate(relaxation_variable)
         end if
     end subroutine read_from_nc
+    !
+    !indexes from bottom upwards
+    !
+    subroutine do_flux(from,till,i,value)
+      integer ,intent(in):: from
+      integer ,intent(in):: till
+      integer, intent(in):: i
+      real(rk),dimension(from:till),intent(in):: value
+
+      state_vars(i)%value(from:till) = state_vars(i)%value(from:till)&
+                                     + value*seconds_per_circle
+    end subroutine do_flux
   end subroutine
   !
   !
