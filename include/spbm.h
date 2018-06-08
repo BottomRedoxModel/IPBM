@@ -3,7 +3,7 @@
 
 #define _SPBM_FILE_NAME_ 'spbm.yaml'
 
-#define _FABM_YAML_NAME_			      get_spbm_string_parameter('fabm_yaml_name')
+#define _FABM_YAML_NAME_			get_spbm_string_parameter('fabm_yaml_name')
 #define _FILE_NAME_                 get_spbm_string_parameter('input_file_name')
 #define _INITIALIZATION_SINCE_YEAR_ get_spbm_real_parameter('initialization_since_year') 
 #define _DEPTH_ON_BOUNDARY_         get_spbm_string_parameter('depth_on_boundary')
@@ -17,8 +17,8 @@
 #define _ICE_SURFACE_TEMPERATURE_   get_spbm_string_parameter('ice_surface_temperature')
 #define _SHORTWAVE_RADIATION_       get_spbm_string_parameter('shortwave_radiation')
 
-#define _RE_DAY_					          get_spbm_real_parameter('repeat_day') 
-#define _RE_YEAR_					          get_spbm_real_parameter('repeat_year')
+#define _RE_DAY_					get_spbm_real_parameter('repeat_day') 
+#define _RE_YEAR_					get_spbm_real_parameter('repeat_year')
 #define _SECONDS_PER_CIRCLE_        get_spbm_real_parameter('seconds_per_circle')
 #define _IS_SHORTWAVE_RADIATION_IS_PAR_ get_spbm_real_parameter('is_par')
 

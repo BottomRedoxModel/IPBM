@@ -964,9 +964,13 @@ contains
     real(rk),dimension(surface_index-1,number_of_parameters):: increment
     !increment for diffusion
     real(rk),dimension(surface_index-1,number_of_parameters):: dcc
-    ! in cm / day
+    !in cm / day
     real(rk):: ice_algae_velocity
-
+    !relaxation names and relaxation multiplier parameter
+    real(rk):: rp
+    character(len=64):: dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel
+    character(len=64):: si,sirel,o2,o2rel,ch4,ch4flux
+    
     bbl_sed_index   = standard_vars%get_value("bbl_sediments_index")
     ice_water_index = standard_vars%get_value("ice_water_index")
     water_bbl_index = standard_vars%get_value("water_bbl_index")
@@ -1023,10 +1027,18 @@ contains
 
     ! in cm / day
     ice_algae_velocity = _IALGAE_VELOCITY_
-
+    ! for relaxation
+    rp = _RELAXATION_PARAMETER_
+    dic = _DIC_; dicrel = _DIC_rel_; alk = _Alk_; alkrel = _Alk_rel_
+    po4 = _PO4_; po4rel = _PO4_rel_; no3 = _NO3_; no3rel = _NO3_rel_
+    si  =  _Si_; sirel  =  _Si_rel_; o2  =  _O2_;  o2rel =  _O2_rel_
+    ch4 = _CH4_; ch4flux = _CH4_flux_
+    
     do i = 1,number_of_circles
       !
-      call relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day)
+      call relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day,&
+                      dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
+                      si,sirel,o2,o2rel,ch4,ch4flux,rp)
 
       !diffusion
       !dcc = 0._rk
@@ -1681,32 +1693,35 @@ contains
   !
   !
   !
-  subroutine relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day)
+  subroutine relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day,&
+                        dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
+                        si,sirel,o2,o2rel,ch4,ch4flux,rp)
     integer,intent(in):: ice_water_index,bbl_sed_index,water_bbl_index
     integer,intent(in):: day ! from 1 till 365/366
+    
+    character(len=*),intent(in):: dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel
+    character(len=*),intent(in):: si,sirel,o2,o2rel,ch4,ch4flux
+    real(rk)        ,intent(in):: rp
 
     integer number_of_vars
     integer i
-    real(rk):: rp
-
-    rp = _RELAXATION_PARAMETER_
 
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
-      if (state_vars(i)%name.eq._DIC_) then
-        call read_from_nc(_DIC_rel_,i,rp,water_bbl_index,ice_water_index,0)
-      else if (state_vars(i)%name.eq._Alk_) then
-        call read_from_nc(_Alk_rel_,i,rp,water_bbl_index,ice_water_index,0)
-      else if (state_vars(i)%name.eq._PO4_) then
-        call read_from_nc(_PO4_rel_,i,rp,water_bbl_index,ice_water_index,0)
-      else if (state_vars(i)%name.eq._NO3_) then
-        call read_from_nc(_NO3_rel_,i,rp,water_bbl_index,ice_water_index,0)
-      else if (state_vars(i)%name.eq._Si_) then
-        call read_from_nc(_Si_rel_,i,rp,water_bbl_index,ice_water_index,0)
-      else if (state_vars(i)%name.eq._O2_) then
-        call read_from_nc(_O2_rel_,i,rp,water_bbl_index,ice_water_index,0)
-      else if (state_vars(i)%name.eq._CH4_) then
-        call read_from_nc(_CH4_flux_,i,rp,water_bbl_index,ice_water_index,1)
+      if (state_vars(i)%name.eq.dic) then
+        call read_from_nc(dicrel,i,rp,water_bbl_index,ice_water_index,day,0)
+      else if (state_vars(i)%name.eq.alk) then
+        call read_from_nc(alkrel,i,rp,water_bbl_index,ice_water_index,day,0)
+      else if (state_vars(i)%name.eq.po4) then
+        call read_from_nc(po4rel,i,rp,water_bbl_index,ice_water_index,day,0)
+      else if (state_vars(i)%name.eq.no3) then
+        call read_from_nc(no3rel,i,rp,water_bbl_index,ice_water_index,day,0)
+      else if (state_vars(i)%name.eq.si) then
+        call read_from_nc(sirel,i,rp,water_bbl_index,ice_water_index,day,0)
+      else if (state_vars(i)%name.eq.o2) then
+        call read_from_nc(o2rel,i,rp,water_bbl_index,ice_water_index,day,0)
+      else if (state_vars(i)%name.eq.ch4) then
+        call read_from_nc(ch4flux,i,rp,water_bbl_index,ice_water_index,day,1)
       end if
     end do
   contains
@@ -1721,12 +1736,13 @@ contains
     end function sinusoidal
 
     subroutine read_from_nc(name,i,rp,&
-                            water_bbl_index,ice_water_index,&
+                            water_bbl_index,ice_water_index,day,&
                             isflux)
       character(len=*),intent(in):: name
       integer ,intent(in):: i
       real(rk),intent(in):: rp
       integer ,intent(in):: ice_water_index,water_bbl_index
+      integer ,intent(in):: day
       integer ,intent(in):: isflux ! 1 is yes
 
       class(variable),allocatable:: relaxation_variable
