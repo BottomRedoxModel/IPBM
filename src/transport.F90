@@ -970,7 +970,7 @@ contains
     real(rk):: rp
     character(len=64):: dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel
     character(len=64):: si,sirel,o2,o2rel,ch4,ch4flux
-    
+
     bbl_sed_index   = standard_vars%get_value("bbl_sediments_index")
     ice_water_index = standard_vars%get_value("ice_water_index")
     water_bbl_index = standard_vars%get_value("water_bbl_index")
@@ -1033,10 +1033,10 @@ contains
     po4 = _PO4_; po4rel = _PO4_rel_; no3 = _NO3_; no3rel = _NO3_rel_
     si  =  _Si_; sirel  =  _Si_rel_; o2  =  _O2_;  o2rel =  _O2_rel_
     ch4 = _CH4_; ch4flux = _CH4_flux_
-    
+
     do i = 1,number_of_circles
       !
-      call relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day,&
+      call relaxation(ice_water_index,water_bbl_index,day,&
                       dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
                       si,sirel,o2,o2rel,ch4,ch4flux,rp)
 
@@ -1693,12 +1693,12 @@ contains
   !
   !
   !
-  subroutine relaxation(ice_water_index,bbl_sed_index,water_bbl_index,day,&
+  subroutine relaxation(ice_water_index,water_bbl_index,day,&
                         dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
                         si,sirel,o2,o2rel,ch4,ch4flux,rp)
-    integer,intent(in):: ice_water_index,bbl_sed_index,water_bbl_index
+    integer,intent(in):: ice_water_index,water_bbl_index
     integer,intent(in):: day ! from 1 till 365/366
-    
+
     character(len=*),intent(in):: dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel
     character(len=*),intent(in):: si,sirel,o2,o2rel,ch4,ch4flux
     real(rk)        ,intent(in):: rp
@@ -1754,10 +1754,10 @@ contains
           select type(relaxation_variable)
           class is(variable_2d)
             if (isflux == 1) then
-              call do_flux(water_bbl_index,ice_water_index,i,&
+              call do_flux(water_bbl_index,ice_water_index-1,i,&
                                  relaxation_variable%value(:,day))
             else
-              call do_relaxation(water_bbl_index,ice_water_index,i,&
+              call do_relaxation(water_bbl_index,ice_water_index-1,i,&
                                  relaxation_variable%value(:,day),rp)
             end if
           end select
