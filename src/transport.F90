@@ -969,7 +969,7 @@ contains
     !relaxation names and relaxation multiplier parameter
     real(rk):: rp
     character(len=64):: dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel
-    character(len=64):: si,sirel,o2,o2rel,ch4,ch4flux
+    character(len=64):: si,sirel,o2,o2rel,ch4,ch4flux,don,donflux
 
     bbl_sed_index   = standard_vars%get_value("bbl_sediments_index")
     ice_water_index = standard_vars%get_value("ice_water_index")
@@ -1032,13 +1032,14 @@ contains
     dic = _DIC_; dicrel = _DIC_rel_; alk = _Alk_; alkrel = _Alk_rel_
     po4 = _PO4_; po4rel = _PO4_rel_; no3 = _NO3_; no3rel = _NO3_rel_
     si  =  _Si_; sirel  =  _Si_rel_; o2  =  _O2_;  o2rel =  _O2_rel_
-    ch4 = _CH4_; ch4flux = _CH4_flux_
+    ch4 = _CH4_; ch4flux = _CH4_flux_;
+    don = _DON_; donflux = _DON_flux_;
 
     do i = 1,number_of_circles
       !
       call relaxation(ice_water_index,water_bbl_index,day,&
                       dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
-                      si,sirel,o2,o2rel,ch4,ch4flux,rp)
+                      si,sirel,o2,o2rel,ch4,ch4flux,don,donflux,rp)
 
       !diffusion
       !dcc = 0._rk
@@ -1695,12 +1696,12 @@ contains
   !
   subroutine relaxation(ice_water_index,water_bbl_index,day,&
                         dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
-                        si,sirel,o2,o2rel,ch4,ch4flux,rp)
+                        si,sirel,o2,o2rel,ch4,ch4flux,don,donflux,rp)
     integer,intent(in):: ice_water_index,water_bbl_index
     integer,intent(in):: day ! from 1 till 365/366
 
     character(len=*),intent(in):: dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel
-    character(len=*),intent(in):: si,sirel,o2,o2rel,ch4,ch4flux
+    character(len=*),intent(in):: si,sirel,o2,o2rel,ch4,ch4flux,don,donflux
     real(rk)        ,intent(in):: rp
 
     integer number_of_vars
@@ -1722,6 +1723,8 @@ contains
         call read_from_nc(o2rel,i,rp,water_bbl_index,ice_water_index,day,0)
       else if (state_vars(i)%name.eq.ch4) then
         call read_from_nc(ch4flux,i,rp,water_bbl_index,ice_water_index,day,1)
+      else if (state_vars(i)%name.eq.don) then
+        call read_from_nc(donflux,i,rp,water_bbl_index,ice_water_index,day,1)
       end if
     end do
   contains

@@ -53,6 +53,8 @@
 #define _O2_                        get_spbm_string_parameter('O2')
 #define _CH4_                       get_spbm_string_parameter('CH4')
 
+#define _DON_                       get_spbm_string_parameter('DON')
+
 #define _CaCO3_                     get_spbm_string_parameter('CaCO3')
 #define _S0_                        get_spbm_string_parameter('S0')
 #define _Fe3_                       get_spbm_string_parameter('Fe3')
@@ -88,4 +90,5 @@
 #define _O2_rel_                    get_spbm_string_parameter('O2rel')
 
 #define _CH4_flux_                  get_spbm_string_parameter('CH4flux')
+#define _DON_flux_                  get_spbm_string_parameter('DONflux')
 
