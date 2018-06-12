@@ -88,6 +88,7 @@
 #define _NO3_rel_                   get_spbm_string_parameter('NO3rel')
 #define _Si_rel_                    get_spbm_string_parameter('Sirel')
 #define _O2_rel_                    get_spbm_string_parameter('O2rel')
+#define _CH4_rel_                   get_spbm_string_parameter('CH4rel')
 
 #define _CH4_flux_                  get_spbm_string_parameter('CH4flux')
 #define _DON_flux_                  get_spbm_string_parameter('DONflux')
