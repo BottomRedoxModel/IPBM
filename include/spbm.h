@@ -53,7 +53,8 @@
 #define _O2_                        get_spbm_string_parameter('O2')
 #define _CH4_                       get_spbm_string_parameter('CH4')
 
-#define _DON_                       get_spbm_string_parameter('DON')
+#define _DOML_                      get_spbm_string_parameter('DOML')
+#define _DOMR_                      get_spbm_string_parameter('DOMR')
 
 #define _CaCO3_                     get_spbm_string_parameter('CaCO3')
 #define _S0_                        get_spbm_string_parameter('S0')
@@ -91,5 +92,8 @@
 #define _CH4_rel_                   get_spbm_string_parameter('CH4rel')
 
 #define _CH4_flux_                  get_spbm_string_parameter('CH4flux')
-#define _DON_flux_                  get_spbm_string_parameter('DONflux')
+#define _DOML_flux_                 get_spbm_string_parameter('DOMLflux')
+#define _DOMR_flux_                 get_spbm_string_parameter('DOMRflux')
+#define _POML_flux_                 get_spbm_string_parameter('POMLflux')
+#define _POMR_flux_                 get_spbm_string_parameter('POMRflux')
 
