@@ -78,7 +78,7 @@ contains
     class(spbm_standard_variables),intent(inout):: self
     type(type_input):: kara_input
 
-    !open input netcdf and make list with all variables
+    !open 'input_file_name'nc from spbm.yaml, make list with all variables
     kara_input = type_input(_FILE_NAME_)
     !horizontal variables
     call self%add_var(kara_input,_OCEAN_TIME_)

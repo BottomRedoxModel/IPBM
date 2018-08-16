@@ -13,15 +13,20 @@
 #include "../include/spbm.h"
 #include "../include/parameters.h"
 !
-!main module for transport calculations
+! main module for transport calculations
 !
 module transport
+  ! some fabm modules
   use fabm
   use fabm_config
   use fabm_driver
   use fabm_types
-  use input_mod
+  ! input_mod contains only one public object (and procedure with similar name)
+  ! type_input, it downloads all 0,1,2 dimension variables from a .nc file
+  use input_mod,only: type_input
+  ! types_mod contains variables and a list variables objects
   use types_mod,only: variable, variable_2d
+  !
   use variables_mod,only: spbm_standard_variables,&
                           spbm_state_variable
   use yaml_mod !to use a function mentioned in spbm.h
@@ -118,6 +123,7 @@ contains
     !
     !initializing spbm standard_variables
     !makes grid, it starts from bottom (1) to surface (end point)
+    !after the next line all standard_vars names will be displayed
     standard_vars = spbm_standard_variables()
     relaxation_list = type_input(_RELAXATION_FILE_NAME_)
     !_PAUSE_
@@ -555,7 +561,7 @@ contains
       call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif
       call cpu_time(t1)
-      call day_circle(i,surface_index,day)
+      call day_circle(i,surface_index,day,1)
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
                            indices,indices_faces,i,&
                            int(air_ice_indexes(i)))
@@ -672,7 +678,7 @@ contains
 #endif
     !
     do i = 1,counter
-      call day_circle(1,surface_index,day)
+      call day_circle(1,surface_index,day,0)
       allocate(depth_faces,source=&
                standard_vars%get_column(_DEPTH_ON_BOUNDARY_,1))
 
@@ -790,7 +796,7 @@ contains
       call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif
 
-      call day_circle(pseudo_day,surface_index,day)
+      call day_circle(pseudo_day,surface_index,day,0)
 
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
                            indices,indices_faces,pseudo_day,&
@@ -932,10 +938,11 @@ contains
   !
   !calculate iterations within a day
   !
-  subroutine day_circle(id,surface_index,day)
+  subroutine day_circle(id,surface_index,day,is_relax)
     integer,intent(in):: id !number of the count
     integer,intent(in):: surface_index
     integer,intent(in):: day !day
+    integer,intent(in):: is_relax !=1 will implement relaxation
 
     real(rk),dimension(number_of_layers+1):: face_porosity
     real(rk),dimension(number_of_layers+1):: pF1_solutes
@@ -1041,11 +1048,13 @@ contains
 
     do i = 1,number_of_circles
       !
-      call relaxation(ice_water_index,water_bbl_index,day,&
-                      dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
-                      si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
-                      doml,domr,poml,pomr,&
-                      domlflux,domrflux,pomlflux,pomrflux,rp)
+      if (is_relax==1) then
+        call relaxation(ice_water_index,water_bbl_index,day,&
+                        dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
+                        si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
+                        doml,domr,poml,pomr,&
+                        domlflux,domrflux,pomlflux,pomrflux,rp)
+      end if
 
       !diffusion
       !dcc = 0._rk
