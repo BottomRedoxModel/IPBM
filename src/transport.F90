@@ -90,7 +90,6 @@ module transport
     module procedure do_relaxation_single
     module procedure do_relaxation_array
   end interface
-
 contains
   !
   !initialize spbm
@@ -1031,22 +1030,22 @@ contains
 
     do i = 1,number_of_circles
       !
-      if (is_relax==1) then
-        call relaxation(ice_water_index,water_bbl_index,day,&
-                        dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
-                        si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
-                        doml,domr,poml,pomr,&
-                        domlflux,domrflux,pomlflux,pomrflux,rp)
-      end if
-
+      !if (is_relax==1) then
+      !  !it applies only on the water column layers except bbl
+      !  call relaxation(ice_water_index,water_bbl_index,day,&
+      !                  dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
+      !                  si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
+      !                  doml,domr,poml,pomr,&
+      !                  domlflux,domrflux,pomlflux,pomrflux,rp)
+      !end if
       !diffusion
       !dcc = 0._rk
-      call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
-                             pF1_solutes,pF2_solutes,pF1_solids,&
-                             pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
-                             layer_thicknesses,brine_release,dcc)
+      !call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
+      !                       pF1_solutes,pF2_solutes,pF1_solids,&
+      !                       pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
+      !                       layer_thicknesses,brine_release,dcc)
       !call check_array("after_diffusion",surface_index,id,i)
-      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !biogeochemistry
       increment = 0._rk
@@ -1124,29 +1123,23 @@ contains
           state_vars(j)%value(ice_water_index:surface_index-1)&
             = state_vars(j)%value(ice_water_index:surface_index-1)&
             + increment(ice_water_index:surface_index-1,j)
-
         end if
       end do
-      !do j = 1,number_of_parameters
-      !    state_vars(j)%value(:surface_index-1) = &
-      !      state_vars(j)%value(:surface_index-1)+&
-      !      seconds_per_circle*increment(:,j)
-      !end do
       !call check_array("after_fabm_do",surface_index,id,i)
-      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !sedimentation
-      call spbm_do_sedimentation(surface_index,bbl_sed_index,&
-                                 ice_water_index,k_sed1,w_b,u_b,&
-                                 dphidz_SWI,&
-                                 increment,&
-                                 face_porosity(:surface_index),&
-                                 kz_bio(:surface_index),&
-                                 layer_thicknesses(2:surface_index),&
-                                 dz(:surface_index-2),&
-                                 ice_algae_velocity)
+      !call spbm_do_sedimentation(surface_index,bbl_sed_index,&
+      !                           ice_water_index,k_sed1,w_b,u_b,&
+      !                           dphidz_SWI,&
+      !                           increment,&
+      !                           face_porosity(:surface_index),&
+      !                           kz_bio(:surface_index),&
+      !                           layer_thicknesses(2:surface_index),&
+      !                           dz(:surface_index-2),&
+      !                           ice_algae_velocity)
       !call check_array("after_sedimentation",surface_index,id,i)
-      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
     end do
   end subroutine
   !
