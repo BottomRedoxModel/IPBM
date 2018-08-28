@@ -1039,12 +1039,12 @@ contains
       !                  domlflux,domrflux,pomlflux,pomrflux,rp)
       !end if
       !diffusion
-      !dcc = 0._rk
-      !call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
-      !                       pF1_solutes,pF2_solutes,pF1_solids,&
-      !                       pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
-      !                       layer_thicknesses,brine_release,dcc)
-      !call check_array("after_diffusion",surface_index,id,i)
+      dcc = 0._rk
+      call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
+                             pF1_solutes,pF2_solutes,pF1_solids,&
+                             pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
+                             layer_thicknesses,brine_release,dcc)
+      call check_array("after_diffusion",surface_index,id,i)
       !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !biogeochemistry
@@ -1125,7 +1125,7 @@ contains
             + increment(ice_water_index:surface_index-1,j)
         end if
       end do
-      !call check_array("after_fabm_do",surface_index,id,i)
+      call check_array("after_fabm_do",surface_index,id,i)
       !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !sedimentation
