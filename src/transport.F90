@@ -62,7 +62,7 @@ module transport
   type(type_bulk_variable_id)      ,save:: pres_id,par_id
   !for the ERSEM carbonate
   type(type_bulk_variable_id)      ,save:: rho_id
-  type(type_horizontal_variable_id),save:: lon_id,lat_id,ws_id
+  type(type_horizontal_variable_id),save:: lat_id,ws_id
   type(type_scalar_variable_id)    ,save:: id_yearday !- ersem zenith
   !for relaxation
   type(type_input):: relaxation_list
@@ -265,10 +265,6 @@ contains
               standard_variables%downwelling_photosynthetic_radiative_flux)
     allocate(radiative_flux(number_of_layers))
     call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
-    !longtitude
-    lon_id  = fabm_model%get_horizontal_variable_id(&
-              standard_variables%longitude)
-    call fabm_link_horizontal_data(fabm_model,lon_id,_LONGITUDE_)
     !latitude
     lat_id  = fabm_model%get_horizontal_variable_id(&
               standard_variables%latitude)
@@ -903,14 +899,19 @@ contains
     extinction = extinction+_BACKGROUND_ATTENUATION_+ &
                             _SILT_ATTENUATION_* &
                             _SILT_CONCENTRATION_
-    do i = ice_water_index-1, bbl_sediments_index, -1
-      !extinction over layer i with thickness cell(i)
-      cell_extinction = extinction(i)*cell(i)
-      !extinction factor due to layer i (0<extfac<1)
-      extfac = exp(-cell_extinction)
-      radiative_flux(i) = buffer/cell_extinction*(1.0_rk-extfac)
-      buffer = buffer*extfac
-    end do
+    if (any(extinction(:)<0.000001_rk)) then
+      radiative_flux(bbl_sediments_index:ice_water_index-1)&
+        = surface_flux
+    else
+      do i = ice_water_index-1, bbl_sediments_index, -1
+        !extinction over layer i with thickness cell(i)
+        cell_extinction = extinction(i)*cell(i)
+        !extinction factor due to layer i (0<extfac<1)
+        extfac = exp(-cell_extinction)
+        radiative_flux(i) = buffer/cell_extinction*(1.0_rk-extfac)
+        buffer = buffer*extfac
+      end do
+    end if
     radiative_flux(:bbl_sediments_index-1) = 0._rk
     !in the cases when surf flux isn't PAR
     if (_IS_SHORTWAVE_RADIATION_IS_PAR_ == 0) then
@@ -1127,7 +1128,7 @@ contains
                              pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
                              layer_thicknesses,brine_release,dcc)
       call check_array("after_diffusion",surface_index,id,i)
-      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !sedimentation
       !call spbm_do_sedimentation(surface_index,bbl_sed_index,&

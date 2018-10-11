@@ -33,7 +33,6 @@
 #define _SILT_ATTENUATION_          get_spbm_real_parameter('silt_attenuation')
 #define _SILT_CONCENTRATION_        get_spbm_real_parameter('silt_concentration')
 
-#define _LONGITUDE_                 get_spbm_real_parameter('longitude')
 #define _LATITUDE_                  get_spbm_real_parameter('latitude')
 
 #define _WIDTH_BBL_                 get_spbm_real_parameter('width_bbl')
