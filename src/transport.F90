@@ -660,18 +660,18 @@ contains
 #endif
     !
     do i = 1,counter
-      call day_circle(1,surface_index,day,0)
+      call day_circle(1,surface_index,day,1)
       allocate(depth_faces,source=&
                standard_vars%get_column(_DEPTH_ON_BOUNDARY_,1))
 
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
-                           indices,indices_faces,1,&
+                           indices,indices_faces,i,&
                            int(air_ice_indexes(1)))
       call netcdf_water%save(fabm_model,standard_vars,state_vars,&
-                             depth,depth_faces,1,&
+                             depth,depth_faces,i,&
                              int(air_ice_indexes(1)))
       call netcdf_sediments%save(fabm_model,standard_vars,state_vars,&
-                                 depth,depth_faces,1,&
+                                 depth,depth_faces,i,&
                                  int(air_ice_indexes(1)))
 
       write(*,*) "Stabilizing initial array of values, in progress ..."
@@ -774,7 +774,7 @@ contains
       call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif
 
-      call day_circle(pseudo_day,surface_index,day,0)
+      call day_circle(pseudo_day,surface_index,day,1)
 
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
                            indices,indices_faces,pseudo_day,&
@@ -1030,15 +1030,16 @@ contains
     pomlflux = _POML_flux_; pomrflux = _POMR_flux_
 
     do i = 1,number_of_circles
-      !
-      !if (is_relax==1) then
-      !  !it applies only on the water column layers except bbl
-      !  call relaxation(ice_water_index,water_bbl_index,day,&
-      !                  dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
-      !                  si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
-      !                  doml,domr,poml,pomr,&
-      !                  domlflux,domrflux,pomlflux,pomrflux,rp)
-      !end if
+
+      if (is_relax==1) then
+        !it applies only on the water column layers except bbl
+        call relaxation(ice_water_index,water_bbl_index,id,&
+                        dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
+                        si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
+                        doml,domr,poml,pomr,&
+                        domlflux,domrflux,pomlflux,pomrflux,rp)
+      end if
+      call check_array("after relaxation",surface_index,id,i)
 
       !biogeochemistry
       increment = 0._rk
@@ -1067,7 +1068,7 @@ contains
           !both brine and total volume concentrations
         end if
       end do
-      !call check_array("after_concentrations_recalculation",surface_index,id,i)
+      call check_array("after_concentrations_recalculation",surface_index,id,i)
       call fabm_do(fabm_model,1,surface_index-1,increment)
       do j = 1,number_of_parameters
         !if (state_vars(j)%is_solid.neqv..true. .and. &
@@ -1119,7 +1120,7 @@ contains
         end if
       end do
       call check_array("after_fabm_do",surface_index,id,i)
-      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !diffusion
       dcc = 0._rk
@@ -1131,17 +1132,17 @@ contains
       call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !sedimentation
-      !call spbm_do_sedimentation(surface_index,bbl_sed_index,&
-      !                           ice_water_index,k_sed1,w_b,u_b,&
-      !                           dphidz_SWI,&
-      !                           increment,&
-      !                           face_porosity(:surface_index),&
-      !                           kz_bio(:surface_index),&
-      !                           layer_thicknesses(2:surface_index),&
-      !                           dz(:surface_index-2),&
-      !                           ice_algae_velocity)
-      !call check_array("after_sedimentation",surface_index,id,i)
-      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      call spbm_do_sedimentation(surface_index,bbl_sed_index,&
+                                 ice_water_index,k_sed1,w_b,u_b,&
+                                 dphidz_SWI,&
+                                 increment,&
+                                 face_porosity(:surface_index),&
+                                 kz_bio(:surface_index),&
+                                 layer_thicknesses(2:surface_index),&
+                                 dz(:surface_index-2),&
+                                 ice_algae_velocity)
+      call check_array("after_sedimentation",surface_index,id,i)
+      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
     end do
   end subroutine
   !
@@ -1687,13 +1688,13 @@ contains
   !
   !
   !
-  subroutine relaxation(ice_water_index,water_bbl_index,day,&
+  subroutine relaxation(ice_water_index,water_bbl_index,id,&
                         dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
                         si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
                         doml,domr,poml,pomr,&
                         domlflux,domrflux,pomlflux,pomrflux,rp)
     integer,intent(in):: ice_water_index,water_bbl_index
-    integer,intent(in):: day ! from 1 till 365/366
+    integer,intent(in):: id ! from 1 till 365/366
 
     character(len=*),intent(in):: dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel
     character(len=*),intent(in):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
@@ -1707,49 +1708,49 @@ contains
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
       if (state_vars(i)%name.eq.dic) then
-        call read_from_nc(dicrel,i,rp,water_bbl_index,ice_water_index,day,0)
+        call read_from_nc(dicrel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.alk) then
-        call read_from_nc(alkrel,i,rp,water_bbl_index,ice_water_index,day,0)
+        call read_from_nc(alkrel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.po4) then
-        call read_from_nc(po4rel,i,rp,water_bbl_index,ice_water_index,day,0)
+        call read_from_nc(po4rel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.no3) then
-        call read_from_nc(no3rel,i,rp,water_bbl_index,ice_water_index,day,0)
+        call read_from_nc(no3rel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.si) then
-        call read_from_nc(sirel,i,rp,water_bbl_index,ice_water_index,day,0)
+        call read_from_nc(sirel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.o2) then
-        call read_from_nc(o2rel,i,rp,water_bbl_index,ice_water_index,day,0)
+        call read_from_nc(o2rel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.ch4) then
-        call read_from_nc(ch4flux,i,rp,water_bbl_index,ice_water_index,day,1)
-        call read_from_nc(ch4rel ,i,rp,water_bbl_index,ice_water_index,day,0)
+        call read_from_nc(ch4flux,i,rp,water_bbl_index,ice_water_index,id,1)
+        call read_from_nc(ch4rel ,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.doml) then
-        call read_from_nc(domlflux,i,rp,water_bbl_index,ice_water_index,day,1)
+        call read_from_nc(domlflux,i,rp,water_bbl_index,ice_water_index,id,1)
       else if (state_vars(i)%name.eq.domr) then
-        call read_from_nc(domrflux,i,rp,water_bbl_index,ice_water_index,day,1)
+        call read_from_nc(domrflux,i,rp,water_bbl_index,ice_water_index,id,1)
       else if (state_vars(i)%name.eq.poml) then
-        call read_from_nc(pomlflux,i,rp,water_bbl_index,ice_water_index,day,1)
+        call read_from_nc(pomlflux,i,rp,water_bbl_index,ice_water_index,id,1)
       else if (state_vars(i)%name.eq.pomr) then
-        call read_from_nc(pomrflux,i,rp,water_bbl_index,ice_water_index,day,1)
+        call read_from_nc(pomrflux,i,rp,water_bbl_index,ice_water_index,id,1)
       end if
     end do
   contains
-    pure function sinusoidal(day,multiplier)
-      integer, intent(in):: day
+    pure function sinusoidal(id,multiplier)
+      integer, intent(in):: id
       real(rk),intent(in):: multiplier
       real(rk) sinusoidal
 
       sinusoidal =  multiplier/2 + 0.5_rk*&
                     (1._rk+sin(2._rk*_PI_*(&
-                    day-60._rk)/365._rk))*multiplier/2
+                    id-60._rk)/365._rk))*multiplier/2
     end function sinusoidal
 
     subroutine read_from_nc(name,i,rp,&
-                            water_bbl_index,ice_water_index,day,&
+                            water_bbl_index,ice_water_index,id,&
                             isflux)
       character(len=*),intent(in):: name
       integer ,intent(in):: i
       real(rk),intent(in):: rp
       integer ,intent(in):: ice_water_index,water_bbl_index
-      integer ,intent(in):: day
+      integer ,intent(in):: id
       integer ,intent(in):: isflux ! 1 is yes
 
       class(variable),allocatable:: relaxation_variable
@@ -1762,10 +1763,10 @@ contains
           class is(variable_2d)
             if (isflux == 1) then
               call do_flux(water_bbl_index,ice_water_index-1,i,&
-                                 relaxation_variable%value(:,day))
+                                 relaxation_variable%value(:,id))
             else
               call do_relaxation(water_bbl_index,ice_water_index-1,i,&
-                                 relaxation_variable%value(:,day),rp)
+                                 relaxation_variable%value(:,id),rp)
             end if
           end select
           deallocate(relaxation_variable)
