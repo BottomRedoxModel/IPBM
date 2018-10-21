@@ -445,7 +445,7 @@ contains
         is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
       !read (*,*)
     end subroutine
-  end subroutine
+  end subroutine initialize_spbm
   !
   !procedure with the main cycle
   !
@@ -546,6 +546,7 @@ contains
         standard_vars%get_value(_ICE_THICKNESS_ ,i))
       call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif
+      call fabm_link_horizontal_data(fabm_model,lat_id,_LATITUDE_)
       call cpu_time(t1)
       call day_circle(i,surface_index,day,1)
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
@@ -583,7 +584,7 @@ contains
         first_year = first_year+1
       end do
     end subroutine
-  end subroutine
+  end subroutine sarafan
   !
   !first day iteration
   !
@@ -658,6 +659,7 @@ contains
       standard_vars%get_value(_ICE_THICKNESS_ ,1))
     call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif
+    call fabm_link_horizontal_data(fabm_model,lat_id,_LATITUDE_)
     !
     do i = 1,counter
       call day_circle(1,surface_index,day,1)
@@ -681,7 +683,7 @@ contains
     call netcdf_ice%close()
     call netcdf_water%close()
     call netcdf_sediments%close()
-  end subroutine
+  end subroutine first_day_circle
   !
   !first year iteration
   !
@@ -773,6 +775,7 @@ contains
         standard_vars%get_value(_ICE_THICKNESS_ ,pseudo_day))
       call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif
+      call fabm_link_horizontal_data(fabm_model,lat_id,_LATITUDE_)
 
       call day_circle(pseudo_day,surface_index,day,1)
 
@@ -795,7 +798,7 @@ contains
     call netcdf_ice%close()
     call netcdf_water%close()
     call netcdf_sediments%close()
-  end subroutine
+  end subroutine first_year_circle
   !
   !keeps actual day and year
   !
@@ -809,7 +812,7 @@ contains
       year = year+1
       day = day-days
     end if
-  end subroutine
+  end subroutine date
   !
   !return 1 (integer) in case of leap year
   !
@@ -850,7 +853,7 @@ contains
     !This is the approximation used in Yakushev and Sorensen (2013) for OXYDEP
     surface_radiative_flux = max(0.0_rk, Io*cos((latitude-decl)*_PI_/180.0_rk))
     surface_radiative_flux = _PAR_PART_*surface_radiative_flux
-  end function
+  end function surface_radiative_flux
   !
   !calculates PAR in the ice and water columns
   !
@@ -917,7 +920,7 @@ contains
     if (_IS_SHORTWAVE_RADIATION_IS_PAR_ == 0) then
       radiative_flux = _PAR_PART_*radiative_flux
     end if
-  end subroutine
+  end subroutine calculate_radiative_flux
   !
   !calculate iterations within a day
   !
@@ -1144,7 +1147,7 @@ contains
       call check_array("after_sedimentation",surface_index,id,i)
       call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
     end do
-  end subroutine
+  end subroutine day_circle
   !
   !diffusion part
   !
@@ -1292,7 +1295,7 @@ contains
                           temporary(1:surface_index-1,i)
     !end forall
     end do
-  end subroutine
+  end subroutine spbm_do_diffusion
   !
   !adapted from Phil Wallhead code
   !calculates vertical advection (sedimentation)
@@ -1684,7 +1687,7 @@ contains
     end do
     call fatal_error("Search state variable",&
                      "No such variable")
-  end subroutine
+  end subroutine find_set_state_variable
   !
   !
   !
@@ -1784,7 +1787,7 @@ contains
       state_vars(i)%value(from:till) = state_vars(i)%value(from:till)&
                                      + value*seconds_per_circle
     end subroutine do_flux
-  end subroutine
+  end subroutine relaxation
   !
   !
   !
@@ -1835,7 +1838,7 @@ contains
     end do
     call fatal_error("Search state variable",&
                      "No such variable")
-  end function
+  end function find_state_variable
   !
   !returns index of variable
   !
@@ -1853,7 +1856,7 @@ contains
       end if
     end do
     find_index_of_state_variable = -1
-  end function
+  end function find_index_of_state_variable
   !
   !checking for negative and NaNs
   !
@@ -1892,4 +1895,4 @@ program main
 
   call initialize_spbm()
   call sarafan()
-end program
+end program main
