@@ -901,7 +901,7 @@ contains
                             _SILT_CONCENTRATION_
     if (any(extinction(:)<0.000001_rk)) then
       radiative_flux(bbl_sediments_index:ice_water_index-1)&
-        = surface_flux
+        = buffer
     else
       do i = ice_water_index-1, bbl_sediments_index, -1
         !extinction over layer i with thickness cell(i)
