@@ -66,6 +66,7 @@
 #define _MnS_                       get_spbm_string_parameter('MnS')
 #define _Sipart_                    get_spbm_string_parameter('Sipart')
 #define _Phy_                       get_spbm_string_parameter('Phy')
+#define _Het_                       get_spbm_string_parameter('Het')
 #define _POML_                      get_spbm_string_parameter('POML')
 #define _POMR_                      get_spbm_string_parameter('POMR')
 #define _SmallPOM_                  get_spbm_string_parameter('SmallPOM')

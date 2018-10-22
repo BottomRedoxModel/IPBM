@@ -348,6 +348,8 @@ contains
       !organic compounds
       call find_set_state_variable(_Phy_,&
         is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(_Het_,&
+        is_solid = .true.,density = 1.5E7_rk)
       call find_set_state_variable(_POML_,&
         is_solid = .true.,density = 1.5E7_rk)
       call find_set_state_variable(_POMR_,&
