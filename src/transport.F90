@@ -1035,7 +1035,6 @@ contains
     pomlflux = _POML_flux_; pomrflux = _POMR_flux_
 
     do i = 1,number_of_circles
-
       if (is_relax==1) then
         !it applies only on the water column layers except bbl
         call relaxation(ice_water_index,water_bbl_index,id,&
@@ -1048,84 +1047,14 @@ contains
 
       !biogeochemistry
       increment = 0._rk
-      do j = 1,number_of_parameters
-        !if (state_vars(j)%is_solid.neqv..true. .and. &
-        !    state_vars(j)%is_gas  .neqv..true.) then
-        !for solutes:
-        if (state_vars(j)%is_solid.neqv..true.) then
-          !sedimants domain
-          state_vars(j)%value(:bbl_sed_index-1)&
-            = state_vars(j)%value(:bbl_sed_index-1)&
-            / porosity(:bbl_sed_index-1)
-          !ice domain
-          state_vars(j)%value(ice_water_index:surface_index-1)&
-            = state_vars(j)%value(ice_water_index:surface_index-1)&
-            / porosity(ice_water_index:surface_index-1)
-        !for solids:
-        else
-          !sediments domain
-          state_vars(j)%value(:bbl_sed_index-1)&
-            = state_vars(j)%value(:bbl_sed_index-1)&
-            * pF1_solids(2:bbl_sed_index)
-          !
-          !ice domain
-          !all solids in the ice domain have similar
-          !both brine and total volume concentrations
-        end if
-      end do
-      call check_array("after_concentrations_recalculation",surface_index,id,i)
       call fabm_do(fabm_model,1,surface_index-1,increment)
       do j = 1,number_of_parameters
-        !if (state_vars(j)%is_solid.neqv..true. .and. &
-        !    state_vars(j)%is_gas  .neqv..true.) then
-        !for solutes:
-        if (state_vars(j)%is_solid.neqv..true.) then
-          !sediments_domain
-          increment(:bbl_sed_index-1,j) &
-            = seconds_per_circle*increment(:bbl_sed_index-1,j)
-          state_vars(j)%value(:bbl_sed_index-1)&
-            = (state_vars(j)%value(:bbl_sed_index-1)&
-            + increment(:bbl_sed_index-1,j))&
-            * porosity(:bbl_sed_index-1)
-          !water domain
-          state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
-            = state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
-            + seconds_per_circle&
-            * increment(bbl_sed_index:ice_water_index-1,j)
-          !ice_domain
-          increment(ice_water_index:surface_index-1,j) &
-            = seconds_per_circle*increment(ice_water_index:surface_index-1,j)
-          state_vars(j)%value(ice_water_index:surface_index-1)&
-            = (state_vars(j)%value(ice_water_index:surface_index-1)&
-            + increment(ice_water_index:surface_index-1,j))&
-            * porosity(ice_water_index:surface_index-1)
-        !for solids:
-        else
-          !sediments domain
-          increment(:bbl_sed_index-1,j) &
-            = seconds_per_circle*increment(:bbl_sed_index-1,j)
-          state_vars(j)%value(:bbl_sed_index-1)&
-            = (state_vars(j)%value(:bbl_sed_index-1)&
-            + increment(:bbl_sed_index-1,j))&
-            / pF1_solids(2:bbl_sed_index)
-          !water domain
-          state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
-            = state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
-            + seconds_per_circle&
-            * increment(bbl_sed_index:ice_water_index-1,j)
-          !ice_domain
-          !porosity is needed to constrain production
-          increment(ice_water_index:surface_index-1,j)&
-            = seconds_per_circle&
-            * increment(ice_water_index:surface_index-1,j)&
-            * porosity(ice_water_index:surface_index-1)
-          state_vars(j)%value(ice_water_index:surface_index-1)&
-            = state_vars(j)%value(ice_water_index:surface_index-1)&
-            + increment(ice_water_index:surface_index-1,j)
-        end if
+          state_vars(j)%value(:ice_water_index-1)&
+            = state_vars(j)%value(:ice_water_index-1)&
+             +seconds_per_circle*increment(:,j)
       end do
       call check_array("after_fabm_do",surface_index,id,i)
-      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !diffusion
       dcc = 0._rk
@@ -1134,7 +1063,7 @@ contains
                              pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
                              layer_thicknesses,brine_release,dcc)
       call check_array("after_diffusion",surface_index,id,i)
-      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !sedimentation
       call spbm_do_sedimentation(surface_index,bbl_sed_index,&
@@ -1147,7 +1076,7 @@ contains
                                  dz(:surface_index-2),&
                                  ice_algae_velocity)
       call check_array("after_sedimentation",surface_index,id,i)
-      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
     end do
   end subroutine day_circle
   !
