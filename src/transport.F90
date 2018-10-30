@@ -89,6 +89,8 @@ module transport
   interface do_relaxation
     module procedure do_relaxation_single
     module procedure do_relaxation_array
+    module procedure do_relaxation_array_with_alk
+    module procedure do_relaxation_array_alk
   end interface
 contains
   !
@@ -963,7 +965,7 @@ contains
     real(rk):: ice_algae_velocity
     !relaxation names and relaxation multiplier parameter
     real(rk):: rp
-    character(len=64):: dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel
+    character(len=64):: alk,po4,po4rel,no3,no3rel
     character(len=64):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
     character(len=64):: doml,domr,poml,pomr
     character(len=64):: domlflux,domrflux,pomlflux,pomrflux
@@ -1026,7 +1028,7 @@ contains
     ice_algae_velocity = _IALGAE_VELOCITY_
     ! for relaxation
     rp = _RELAXATION_PARAMETER_
-    dic = _DIC_; dicrel = _DIC_rel_; alk = _Alk_; alkrel = _Alk_rel_
+    alk = _Alk_;
     po4 = _PO4_; po4rel = _PO4_rel_; no3 = _NO3_; no3rel = _NO3_rel_
     si  =  _Si_; sirel  =  _Si_rel_; o2  =  _O2_;  o2rel =  _O2_rel_
     ch4 = _CH4_; ch4rel = _CH4_rel_; ch4flux = _CH4_flux_
@@ -1038,7 +1040,7 @@ contains
       if (is_relax==1) then
         !it applies only on the water column layers except bbl
         call relaxation(ice_water_index,water_bbl_index,id,&
-                        dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
+                        alk,po4,po4rel,no3,no3rel,&
                         si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
                         doml,domr,poml,pomr,&
                         domlflux,domrflux,pomlflux,pomrflux,rp)
@@ -1623,32 +1625,30 @@ contains
   !
   !
   subroutine relaxation(ice_water_index,water_bbl_index,id,&
-                        dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel,&
+                        alk,po4,po4rel,no3,no3rel,&
                         si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
                         doml,domr,poml,pomr,&
                         domlflux,domrflux,pomlflux,pomrflux,rp)
     integer,intent(in):: ice_water_index,water_bbl_index
-    integer,intent(in):: id ! from 1 till 365/366
+    integer,intent(in):: id
 
-    character(len=*),intent(in):: dic,dicrel,alk,alkrel,po4,po4rel,no3,no3rel
-    character(len=*),intent(in):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
-    character(len=*),intent(in):: doml,domr,poml,pomr
-    character(len=*),intent(in):: domlflux,domrflux,pomlflux,pomrflux
+    character(len=64),intent(in):: alk,po4,po4rel,no3,no3rel
+    character(len=64),intent(in):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
+    character(len=64),intent(in):: doml,domr,poml,pomr
+    character(len=64),intent(in):: domlflux,domrflux,pomlflux,pomrflux
     real(rk)        ,intent(in):: rp
 
     integer number_of_vars
-    integer i
+    integer i,id_alk
+    real(rk),dimension(water_bbl_index:ice_water_index-1):: d_alk
 
+    d_alk = 0._rk
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
-      if (state_vars(i)%name.eq.dic) then
-        call read_from_nc(dicrel,i,rp,water_bbl_index,ice_water_index,id,0)
-      else if (state_vars(i)%name.eq.alk) then
-        call read_from_nc(alkrel,i,rp,water_bbl_index,ice_water_index,id,0)
-      else if (state_vars(i)%name.eq.po4) then
-        call read_from_nc(po4rel,i,rp,water_bbl_index,ice_water_index,id,0)
+      if (state_vars(i)%name.eq.po4) then
+        call read_from_nc(po4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk,-1._rk)
       else if (state_vars(i)%name.eq.no3) then
-        call read_from_nc(no3rel,i,rp,water_bbl_index,ice_water_index,id,0)
+        call read_from_nc(no3rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk,-1._rk)
       else if (state_vars(i)%name.eq.si) then
         call read_from_nc(sirel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.o2) then
@@ -1664,8 +1664,14 @@ contains
         call read_from_nc(pomlflux,i,rp,water_bbl_index,ice_water_index,id,1)
       else if (state_vars(i)%name.eq.pomr) then
         call read_from_nc(pomrflux,i,rp,water_bbl_index,ice_water_index,id,1)
+      !save an id to calculate alkalinity after the all elements
+      else if (state_vars(i)%name.eq.alk) then
+        id_alk = i
       end if
     end do
+    !change alkalinity due to the saved increments of NO3-, PO4-, SO4=, and etc.
+    !it should go the last after calculation of the all compounds
+    call do_relaxation(water_bbl_index,ice_water_index-1,id_alk,d_alk)
   contains
     pure function sinusoidal(id,multiplier)
       integer, intent(in):: id
@@ -1676,16 +1682,22 @@ contains
                     (1._rk+sin(2._rk*_PI_*(&
                     id-60._rk)/365._rk))*multiplier/2
     end function sinusoidal
-
+    !
+    !
+    !
     subroutine read_from_nc(name,i,rp,&
                             water_bbl_index,ice_water_index,id,&
-                            isflux)
-      character(len=*),intent(in):: name
+                            isflux,d_alk,k_alk)
+      character(len=64),intent(in):: name
       integer ,intent(in):: i
       real(rk),intent(in):: rp
       integer ,intent(in):: ice_water_index,water_bbl_index
       integer ,intent(in):: id
       integer ,intent(in):: isflux ! 1 is yes
+      real(rk),optional,dimension(water_bbl_index:ice_water_index-1)&
+              ,intent(inout):: d_alk
+      !TA coef or ion charge # for NO3- it is -1, for SO4= it is -2
+      real(rk),optional,intent(in):: k_alk
 
       class(variable),allocatable:: relaxation_variable
 
@@ -1699,8 +1711,15 @@ contains
               call do_flux(water_bbl_index,ice_water_index-1,i,&
                                  relaxation_variable%value(:,id))
             else
-              call do_relaxation(water_bbl_index,ice_water_index-1,i,&
-                                 relaxation_variable%value(:,id),rp)
+              !this is for elements which can contribute to TA
+              if (present(d_alk).and.present(k_alk)) then
+                call do_relaxation(water_bbl_index,ice_water_index-1,i,&
+                                   relaxation_variable%value(:,id),rp,d_alk,k_alk)
+              !here we calculate relaxation for elements not in TA
+              else
+                call do_relaxation(water_bbl_index,ice_water_index-1,i,&
+                                   relaxation_variable%value(:,id),rp)
+              end if
             end if
           end select
           deallocate(relaxation_variable)
@@ -1720,7 +1739,7 @@ contains
     end subroutine do_flux
   end subroutine relaxation
   !
-  !
+  !currently unused
   !
   subroutine do_relaxation_single(value,index,i,rp)
     real(rk),intent(in):: value
@@ -1734,7 +1753,7 @@ contains
     state_vars(i)%value(index) = state_vars(i)%value(index)+dcc*rp
   end subroutine do_relaxation_single
   !
-  !indexes from bottom upwards
+  !for variables not in conservative TA
   !
   subroutine do_relaxation_array(from,till,i,value,rp)
     integer ,intent(in):: from
@@ -1747,10 +1766,46 @@ contains
     real(rk) dcc
 
     do j = from,till
-      dcc = value(j)-state_vars(i)%value(j)
-      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc*rp
+      dcc = (value(j)-state_vars(i)%value(j))*rp
+      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
     end do
   end subroutine do_relaxation_array
+  !
+  !for variables in conservative TA
+  !
+  subroutine do_relaxation_array_with_alk(from,till,i,value,rp,d_alk,k_alk)
+    integer ,intent(in):: from
+    integer ,intent(in):: till
+    integer, intent(in):: i
+    real(rk),dimension(from:till),intent(in):: value
+    real(rk),intent(in):: rp
+    real(rk),dimension(from:till),intent(inout):: d_alk
+    real(rk),intent(in):: k_alk !ion charge
+
+    integer j
+    real(rk) dcc
+
+    do j = from,till
+      dcc = (value(j)-state_vars(i)%value(j))*rp
+      d_alk(j) = d_alk(j)+dcc*k_alk
+      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
+    end do
+  end subroutine do_relaxation_array_with_alk
+  !
+  !for TA update - according to the compounds elements
+  !
+  subroutine do_relaxation_array_alk(from,till,i,d_alk)
+    integer ,intent(in):: from
+    integer ,intent(in):: till
+    integer, intent(in):: i
+    real(rk),dimension(from:till),intent(in):: d_alk
+
+    integer j
+
+    do j = from,till
+      state_vars(i)%value(j) = state_vars(i)%value(j)+d_alk(j)
+    end do
+  end subroutine do_relaxation_array_alk
   !
   !returns type spbm_state_variable by name
   !

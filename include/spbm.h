@@ -44,7 +44,6 @@
 #define _ICE_LAYERS_RESOLUTION_     get_spbm_real_parameter('ice_layers_resolution')
 
 #define _Alk_                       get_spbm_string_parameter('Alk')
-#define _DIC_                       get_spbm_string_parameter('DIC')
 #define _PO4_                       get_spbm_string_parameter('PO4')
 #define _NO3_                       get_spbm_string_parameter('NO3')
 #define _Si_                        get_spbm_string_parameter('Si')
@@ -83,8 +82,6 @@
 
 #define _RELAXATION_FILE_NAME_      get_spbm_string_parameter('relaxation_file_name')
 #define _RELAXATION_PARAMETER_      get_spbm_real_parameter('relaxation_parameter')
-#define _DIC_rel_                   get_spbm_string_parameter('DICrel')
-#define _Alk_rel_                   get_spbm_string_parameter('Alkrel')
 #define _PO4_rel_                   get_spbm_string_parameter('PO4rel')
 #define _NO3_rel_                   get_spbm_string_parameter('NO3rel')
 #define _Si_rel_                    get_spbm_string_parameter('Sirel')
