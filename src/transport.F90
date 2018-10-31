@@ -1051,8 +1051,8 @@ contains
       increment = 0._rk
       call fabm_do(fabm_model,1,surface_index-1,increment)
       do j = 1,number_of_parameters
-          state_vars(j)%value(:ice_water_index-1)&
-            = state_vars(j)%value(:ice_water_index-1)&
+          state_vars(j)%value(:surface_index-1)&
+            = state_vars(j)%value(:surface_index-1)&
              +seconds_per_circle*increment(:,j)
       end do
       call check_array("after_fabm_do",surface_index,id,i)
