@@ -22,8 +22,8 @@
 
 !porosity parameters:
 !(Soetaert etc., 1996)
-#define _MAX_POROSITY_    0.45_rk
-#define _MIN_POROSITY_    0.35_rk
+#define _MAX_POROSITY_    0.85_rk
+#define _MIN_POROSITY_    0.45_rk
 #define _POROSITY_DECAY_  0.04_rk
 #define _BURIAL_VELOCITY_ 0.e-10_rk
 
