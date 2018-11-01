@@ -1701,29 +1701,29 @@ contains
 
       class(variable),allocatable:: relaxation_variable
 
-        if (name(1:4) == "none") then
-          return
-        else
-          call relaxation_list%get_var(name,relaxation_variable)
-          select type(relaxation_variable)
-          class is(variable_2d)
-            if (isflux == 1) then
-              call do_flux(water_bbl_index,ice_water_index-1,i,&
-                                 relaxation_variable%value(:,id))
+      if (name(1:4) == "none") then
+        return
+      else
+        call relaxation_list%get_var(name,relaxation_variable)
+        select type(relaxation_variable)
+        class is(variable_2d)
+          if (isflux == 1) then
+            call do_flux(water_bbl_index,ice_water_index-1,i,&
+                               relaxation_variable%value(:,id))
+          else
+            !this is for elements which can contribute to TA
+            if (present(d_alk).and.present(k_alk)) then
+              call do_relaxation(water_bbl_index,ice_water_index-1,i,&
+                                 relaxation_variable%value(:,id),rp,d_alk,k_alk)
+            !here we calculate relaxation for elements not in TA
             else
-              !this is for elements which can contribute to TA
-              if (present(d_alk).and.present(k_alk)) then
-                call do_relaxation(water_bbl_index,ice_water_index-1,i,&
-                                   relaxation_variable%value(:,id),rp,d_alk,k_alk)
-              !here we calculate relaxation for elements not in TA
-              else
-                call do_relaxation(water_bbl_index,ice_water_index-1,i,&
-                                   relaxation_variable%value(:,id),rp)
-              end if
+              call do_relaxation(water_bbl_index,ice_water_index-1,i,&
+                                 relaxation_variable%value(:,id),rp)
             end if
-          end select
-          deallocate(relaxation_variable)
-        end if
+          end if
+        end select
+        deallocate(relaxation_variable)
+      end if
     end subroutine read_from_nc
     !
     !indexes from bottom upwards
