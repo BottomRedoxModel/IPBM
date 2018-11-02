@@ -650,6 +650,10 @@ contains
       do i = 1,time
         eddy_kz(air_ice_indexes(i)+1:,i) = D_QNAN
       end do
+
+      !to start not from the bottom most interface
+      eddy_kz(2:bbl_sediments_index,:) = _DISPERSION_COEFFICIENT_
+
       new_var_2d = variable_2d(_TURBULENCE_,&
                                'Eddy diffusivity',var%units,eddy_kz)
       call self%add_item(new_var_2d)
@@ -662,11 +666,13 @@ contains
     allocate(tortuosity(number_of_boundaries,time))
     tortuosity = self%get_array("tortuosity_on_interfaces")
     allocate(value_2d(number_of_boundaries,time))
-    value_2d = _INFINITE_DILLUTION_MOLECULAR_DIFFUSIVITY_
-    value_2d(:bbl_sediments_index,:) = &
+    value_2d = 0._rk
+    value_2d(bbl_sediments_index+1:number_of_boundaries,:) &
+      = _INFINITE_DILLUTION_MOLECULAR_DIFFUSIVITY_
+    value_2d(2:bbl_sediments_index,:) = &
       _RELATIVE_DYNAMIC_VISCOSITY_*&
       _INFINITE_DILLUTION_MOLECULAR_DIFFUSIVITY_/&
-      tortuosity(:bbl_sediments_index,:)**2
+      tortuosity(2:bbl_sediments_index,:)**2
     do i = 1,time
       value_2d(ice_water_index:air_ice_indexes(i),i) = 0._rk
       value_2d(air_ice_indexes(i)+1:,i) = D_QNAN
@@ -688,6 +694,7 @@ contains
           _MIXED_LAYER_DEPTH_)/_DECAY_BIOTURBATION_SCALE_)
       end where
     end do
+    value_2d(1,:) = 0._rk
     do i = 1,time
       value_2d(air_ice_indexes(i)+1:,i) = D_QNAN
     end do

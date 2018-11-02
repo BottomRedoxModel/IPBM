@@ -37,6 +37,7 @@
 
 #define _WIDTH_BBL_                 get_spbm_real_parameter('width_bbl')
 #define _RESOLUTION_BBL_            get_spbm_real_parameter('resolution_bbl')
+#define _DISPERSION_COEFFICIENT_    get_spbm_real_parameter('dispersion_coefficient')
 
 #define _WIDTH_SEDIMENTS_           get_spbm_real_parameter('width_sediments')
 #define _RESOLUTION_SEDIMENTS_      get_spbm_real_parameter('resolution_sediments')
