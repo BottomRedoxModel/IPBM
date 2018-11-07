@@ -965,7 +965,8 @@ contains
     real(rk):: ice_algae_velocity
     !relaxation names and relaxation multiplier parameter
     real(rk):: rp
-    character(len=64):: alk,po4,po4rel,no3,no3rel
+    character(len=64):: alk,dic,dicrel
+    character(len=64):: po4,po4rel,no3,no3rel
     character(len=64):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
     character(len=64):: doml,domr,poml,pomr
     character(len=64):: domlflux,domrflux,pomlflux,pomrflux
@@ -1028,7 +1029,7 @@ contains
     ice_algae_velocity = _IALGAE_VELOCITY_
     ! for relaxation
     rp = _RELAXATION_PARAMETER_
-    alk = _Alk_;
+    alk = _Alk_; dic = _DIC_; dicrel = _DIC_rel_
     po4 = _PO4_; po4rel = _PO4_rel_; no3 = _NO3_; no3rel = _NO3_rel_
     si  =  _Si_; sirel  =  _Si_rel_; o2  =  _O2_;  o2rel =  _O2_rel_
     ch4 = _CH4_; ch4rel = _CH4_rel_; ch4flux = _CH4_flux_
@@ -1040,7 +1041,7 @@ contains
       if (is_relax==1) then
         !it applies only on the water column layers except bbl
         call relaxation(ice_water_index,water_bbl_index,id,&
-                        alk,po4,po4rel,no3,no3rel,&
+                        alk,dic,dicrel,po4,po4rel,no3,no3rel,&
                         si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
                         doml,domr,poml,pomr,&
                         domlflux,domrflux,pomlflux,pomrflux,rp)
@@ -1625,14 +1626,15 @@ contains
   !
   !
   subroutine relaxation(ice_water_index,water_bbl_index,id,&
-                        alk,po4,po4rel,no3,no3rel,&
+                        alk,dic,dicrel,po4,po4rel,no3,no3rel,&
                         si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
                         doml,domr,poml,pomr,&
                         domlflux,domrflux,pomlflux,pomrflux,rp)
     integer,intent(in):: ice_water_index,water_bbl_index
     integer,intent(in):: id
 
-    character(len=64),intent(in):: alk,po4,po4rel,no3,no3rel
+    character(len=64),intent(in):: alk,dic,dicrel
+    character(len=64),intent(in):: po4,po4rel,no3,no3rel
     character(len=64),intent(in):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
     character(len=64),intent(in):: doml,domr,poml,pomr
     character(len=64),intent(in):: domlflux,domrflux,pomlflux,pomrflux
@@ -1653,6 +1655,8 @@ contains
         call read_from_nc(sirel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.o2) then
         call read_from_nc(o2rel,i,rp,water_bbl_index,ice_water_index,id,0)
+      else if (state_vars(i)%name.eq.dic) then
+        call read_from_nc(dicrel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.ch4) then
         call read_from_nc(ch4flux,i,rp,water_bbl_index,ice_water_index,id,1)
         call read_from_nc(ch4rel ,i,rp,water_bbl_index,ice_water_index,id,0)
