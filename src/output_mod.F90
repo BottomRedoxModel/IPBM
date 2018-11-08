@@ -40,6 +40,7 @@ module output_mod
     integer            :: par_id
     integer,allocatable:: standard_id(:)
     integer,allocatable:: parameter_id(:)
+    integer,allocatable:: parameter_fluxes_id(:)
     integer,allocatable:: parameter_id_diag(:)
   contains
     private
@@ -79,7 +80,7 @@ contains
     integer                              ,intent(in):: number_of_layers
 
     type(type_bulk_variable_id):: fabm_standard_id
-  
+
     class(variable)               ,allocatable:: curr
     class(spbm_standard_variables),pointer    :: temporary
 
@@ -108,13 +109,13 @@ contains
     dim_ids(2) = time_dim_id
     dim_ids_faces(1) = z_dim_id_faces
     dim_ids_faces(2) = time_dim_id
-    
+
     !define variables
     call check(nf90_def_var(self%nc_id,"z",&
                 NF90_REAL,z_dim_id,self%z_id))
     call check(nf90_def_var(self%nc_id,"z_faces",&
                 NF90_REAL,z_dim_id_faces,self%z_id_faces))
-    
+
     !to make standard_vars intent(in)
     temporary => standard_vars
     number_of_variables = temporary%count_list()
@@ -149,18 +150,26 @@ contains
       end select
       deallocate(curr)
     end do
-    
+
     allocate(self%parameter_id(size(model%state_variables)))
+    allocate(self%parameter_fluxes_id(size(model%state_variables)))
     do ip = 1,size(model%state_variables)
       call check(nf90_def_var(self%nc_id,&
                  model%state_variables(ip)%name,&
                  NF90_REAL,dim_ids,self%parameter_id(ip)))
+      call check(nf90_def_var(self%nc_id,&
+                 model%state_variables(ip)%name(1:10) // '_flux',&
+                 NF90_REAL,dim_ids_faces,self%parameter_fluxes_id(ip)))
       call check(set_attributes(ncid=self%nc_id,id=self%parameter_id(ip),&
                  units=model%state_variables(ip)%units,&
                  long_name=model%state_variables(ip)%long_name,&
                  missing_value=model%state_variables(ip)%missing_value))
+      call check(set_attributes(ncid=self%nc_id,id=self%parameter_fluxes_id(ip),&
+                 units="Units m^-2 day^-1",&
+                 long_name=model%state_variables(ip)%long_name,&
+                 missing_value=0._rk))
     end do
-    
+
     allocate(self%parameter_id_diag(size(model%diagnostic_variables)))
     do ip = 1,size(model%diagnostic_variables)
       if (model%diagnostic_variables(ip)%save) then
@@ -209,7 +218,7 @@ contains
 
     class(variable)               ,allocatable:: curr
     class(spbm_standard_variables),pointer    :: temporary
-    
+
     !NaN value
     !REAL(rk), PARAMETER :: D_QNAN = &
     !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
@@ -223,7 +232,7 @@ contains
 
     type(type_bulk_variable_id)  :: fabm_standard_id
     real(rk),dimension(:),pointer:: dat
-    
+
     !NaN
     D_QNAN = 0._rk
     D_QNAN = D_QNAN / D_QNAN
@@ -237,7 +246,7 @@ contains
     start(2) = day
     start_time(1) = day
     edges_time(1) = 1
-    
+
     if (self%first) then
       call check(nf90_put_var(self%nc_id,self%z_id,&
                  z(self%first_layer:self%last_layer),start,edges))
@@ -277,11 +286,14 @@ contains
         end select
       deallocate(curr)
       end do
-      
+
       do ip = 1,size(model%state_variables)
         call check(nf90_put_var(self%nc_id,self%parameter_id(ip),&
                    state_vars(ip)%value(self%first_layer:self%last_layer),&
                    start,edges))
+        call check(nf90_put_var(self%nc_id,self%parameter_fluxes_id(ip),&
+                   state_vars(ip)%fickian_fluxes(self%first_layer:self%last_layer+1),&
+                   start,edges_faces))
       end do
       do ip = 1,size(model%diagnostic_variables)
         if (model%diagnostic_variables(ip)%save) then
@@ -294,7 +306,7 @@ contains
           end if
         end if
       end do
-      
+
       !fabm standard variables
       fabm_standard_id = model%get_bulk_variable_id(&
                 standard_variables%downwelling_photosynthetic_radiative_flux)
@@ -302,7 +314,7 @@ contains
       call check(nf90_put_var(self%nc_id,self%par_id,&
                   dat(self%first_layer:self%last_layer),&
                   start,edges))
-    
+
       call check(nf90_sync(self%nc_id))
     end if
   end subroutine save
@@ -313,6 +325,7 @@ contains
     if (self%nc_id.ne.-1) then
       call check(nf90_close(self%nc_id))
       deallocate(self%parameter_id)
+      deallocate(self%parameter_fluxes_id)
       deallocate(self%parameter_id_diag)
     end if
     self%nc_id = -1

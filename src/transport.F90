@@ -102,6 +102,7 @@ contains
 
     integer water_sediments_index
     integer i, k
+
     !NaN value
     !REAL(rk), PARAMETER :: D_QNAN = &
     !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
@@ -142,9 +143,10 @@ contains
     do i = 1,number_of_parameters
       state_vars(i)%name = fabm_model%state_variables(i)%name
       allocate(state_vars(i)%value(number_of_layers))
-      !allocate(state_vars(i)%fabm_value(number_of_layers))
+      allocate(state_vars(i)%fickian_fluxes(number_of_layers+1))
       allocate(state_vars(i)%sinking_velocity(number_of_layers))
       state_vars(i)%value = fabm_model%state_variables(i)%initial_value
+      state_vars(i)%fickian_fluxes = 0._rk
       call state_vars(i)%set_spbm_state_variable(.false.,.false.,&
         _NEUMANN_,_NEUMANN_,0._rk,0._rk,0._rk,zeros)
       !vertical movement rates (m/s, positive for upwards),
@@ -960,7 +962,7 @@ contains
     !increment for fabm do
     real(rk),dimension(surface_index-1,number_of_parameters):: increment
     !fickian diffusive fluxes
-    real(rk),dimension(surface_index,number_of_parameters):: fick
+    real(rk),dimension(number_of_layers+1,number_of_parameters):: fick
     !in cm / day
     real(rk):: ice_algae_velocity
     !relaxation names and relaxation multiplier parameter
@@ -1037,6 +1039,11 @@ contains
     domlflux = _DOML_flux_; domrflux = _DOMR_flux_
     pomlflux = _POML_flux_; pomrflux = _POMR_flux_
 
+    !nullify fickian fluxes
+    do j = 1,number_of_parameters
+      state_vars(j)%fickian_fluxes = 0._rk
+    end do
+
     do i = 1,number_of_circles
       if (is_relax==1) then
         !it applies only on the water column layers except bbl
@@ -1052,9 +1059,9 @@ contains
       increment = 0._rk
       call fabm_do(fabm_model,1,surface_index-1,increment)
       do j = 1,number_of_parameters
-          state_vars(j)%value(:surface_index-1)&
-            = state_vars(j)%value(:surface_index-1)&
-             +seconds_per_circle*increment(:,j)
+        state_vars(j)%value(:surface_index-1)&
+          = state_vars(j)%value(:surface_index-1)&
+           +seconds_per_circle*increment(:,j)
       end do
       call check_array("after_fabm_do",surface_index,id,i)
       !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
@@ -1066,6 +1073,10 @@ contains
                              pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
                              layer_thicknesses,dz,brine_release,fick)
       call check_array("after_diffusion",surface_index,id,i)
+      do j = 1,number_of_parameters
+        state_vars(j)%fickian_fluxes = state_vars(j)%fickian_fluxes(:)&
+                                      +fick(:,j)*seconds_per_circle
+      end do
       !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !sedimentation
@@ -1227,21 +1238,21 @@ contains
           pFSWIup_solids = pFSWIup_solids,&
           pFSWIdw_solids = pFSWIdw_solids)
       !calculate fickian diffusive fluxes
-      !if (state_vars(i)%is_solid .eqv. .false.) then
-      !  fick(:surface_index,i) = &
-      !    calculate_fick(surface_index,bbl_sed_index,&
-      !                   state_vars(i)%value(:surface_index-1),&
-      !                   dz(:surface_index-2),kz_tot(:surface_index,i),&
-      !                   pF1_solutes(2:surface_index),pF2_solutes(1:surface_index),&
-      !                   pFSWIup_solutes,pFSWIdw_solutes,surface_flux(i))
-      !else
-      !  fick(:surface_index,i) = &
-      !    calculate_fick(surface_index,bbl_sed_index,&
-      !                   state_vars(i)%value(:surface_index-1),&
-      !                   dz(:surface_index-2),kz_tot(:surface_index,i),&
-      !                   pF1_solids(2:surface_index),pF2_solids(1:surface_index),&
-      !                   pFSWIup_solids,pFSWIdw_solids,surface_flux(i))
-      !end if
+      if (state_vars(i)%is_solid.eqv..false.) then
+        fick(:surface_index,i) = &
+          calculate_fick(surface_index,bbl_sed_index,&
+                         state_vars(i)%value(:surface_index-1),&
+                         dz(:surface_index-2),kz_tot(:surface_index,i),&
+                         pF1_solutes(2:surface_index),pF2_solutes(1:surface_index),&
+                         pFSWIup_solutes,pFSWIdw_solutes,surface_flux(i))
+      else
+        fick(:surface_index,i) = &
+          calculate_fick(surface_index,bbl_sed_index,&
+                         state_vars(i)%value(:surface_index-1),&
+                         dz(:surface_index-2),kz_tot(:surface_index,i),&
+                         pF1_solids(2:surface_index),pF2_solids(1:surface_index),&
+                         pFSWIup_solids,pFSWIdw_solids,surface_flux(i))
+      end if
       !increment(:surface_index-1,i) = temporary(1:surface_index-1,i)-&
       !                                state_vars(i)%value(:surface_index-1)/&
       !                                seconds_per_circle
@@ -1252,8 +1263,6 @@ contains
   contains
     pure function calculate_fick(surface_index,bbl_sed_index,&
                                  c,dz,kz,pF1,pF2,pFSWIup,pFSWIdw,surface_flux)
-      real(rk),dimension(surface_index):: calculate_fick
-
       integer                               ,intent(in):: surface_index
       integer                               ,intent(in):: bbl_sed_index
       !concentrations in layers
@@ -1271,6 +1280,8 @@ contains
       real(rk)                              ,intent(in):: pFSWIdw
       !calculate by FABM surface flux
       real(rk)                              ,intent(in):: surface_flux
+
+      real(rk),dimension(surface_index):: calculate_fick
 
       integer i
 

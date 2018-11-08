@@ -52,7 +52,7 @@ module variables_mod
     real(rk) bound_low
     real(rk) density
     real(rk),allocatable,dimension(:):: sinking_velocity
-    !real(rk),allocatable,dimension(:):: fabm_value
+    real(rk),allocatable,dimension(:):: fickian_fluxes
   contains
     procedure:: set_spbm_state_variable
     procedure:: print_state_variable
