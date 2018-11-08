@@ -66,10 +66,6 @@ module transport
   type(type_scalar_variable_id)    ,save:: id_yearday !- ersem zenith
   !for relaxation
   type(type_input):: relaxation_list
-  !NaN value
-  !REAL(rk), PARAMETER :: D_QNAN = &
-  !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
-  real(rk) D_QNAN
 
 #if _PURE_ERSEM_ == 1
   !bdepth - bottom depth
@@ -106,6 +102,10 @@ contains
 
     integer water_sediments_index
     integer i, k
+    !NaN value
+    !REAL(rk), PARAMETER :: D_QNAN = &
+    !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
+    real(rk) D_QNAN
 
     !NaN
     D_QNAN = 0._rk
@@ -1064,7 +1064,7 @@ contains
       call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
                              pF1_solutes,pF2_solutes,pF1_solids,&
                              pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
-                             layer_thicknesses,brine_release,fick)
+                             layer_thicknesses,dz,brine_release,fick)
       call check_array("after_diffusion",surface_index,id,i)
       !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
@@ -1089,7 +1089,7 @@ contains
              surface_index,bbl_sed_index,ice_water_index,&
              pF1_solutes,pF2_solutes,pF1_solids,&
              pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
-             layer_thicknesses,brine_release,fick)
+             layer_thicknesses,dz,brine_release,fick)
     use diff_mod
 
     integer,intent(in):: surface_index
@@ -1104,6 +1104,8 @@ contains
     real(rk),dimension(number_of_layers+1),intent(in):: kz_turb
     real(rk),dimension(number_of_layers+1),intent(in):: kz_ice_gravity
     real(rk),dimension(number_of_layers+1),intent(in):: layer_thicknesses
+    ! distance between centers of the layers
+    real(rk),dimension(number_of_layers-1),intent(in):: dz
     real(rk)                              ,intent(in):: brine_release
 
     real(rk),dimension(number_of_layers+1,number_of_parameters),&
@@ -1192,8 +1194,8 @@ contains
     pFSWIup_solids = 1.0_rk/(1.0_rk-pF2_solids(bbl_sed_index))
     pFSWIdw_solids = pFSWIup_solids
 
-    !before calculating fick make it equal NaN
-    fick = D_QNAN
+    !before calculating fick make it equal zero
+    fick = 0._rk
     !forall (i = 1:number_of_parameters)
     do i = 1,number_of_parameters
       temporary(:surface_index-1,i) = do_diffusive(&
@@ -1225,18 +1227,20 @@ contains
           pFSWIup_solids = pFSWIup_solids,&
           pFSWIdw_solids = pFSWIdw_solids)
       !calculate fickian diffusive fluxes
-      !if (state_vars(i)%is_solid == .false.) then
-      !  fick(:surface_index,i) = calculate_fick(state_vars(i)%value(:surface_index-1),&
-      !                                          pF1_solutes(2:surface_index),&
-      !                                          pF2_solutes(1:surface_index),&
-      !                                          pFSWIup_solutes,pFSWIdw_solutes,&
-      !                                          surface_flux(i))
+      !if (state_vars(i)%is_solid .eqv. .false.) then
+      !  fick(:surface_index,i) = &
+      !    calculate_fick(surface_index,bbl_sed_index,&
+      !                   state_vars(i)%value(:surface_index-1),&
+      !                   dz(:surface_index-2),kz_tot(:surface_index,i),&
+      !                   pF1_solutes(2:surface_index),pF2_solutes(1:surface_index),&
+      !                   pFSWIup_solutes,pFSWIdw_solutes,surface_flux(i))
       !else
-      !  fick(:surface_index,i) = calculate_fick(state_vars(i)%value(:surface_index-1),&
-      !                                          pF1_solids(2:surface_index),&
-      !                                          pF2_solids(1:surface_index),&
-      !                                          pFSWIup_solids,pFSWIdw_solids,&
-      !                                          surface_flux(i))
+      !  fick(:surface_index,i) = &
+      !    calculate_fick(surface_index,bbl_sed_index,&
+      !                   state_vars(i)%value(:surface_index-1),&
+      !                   dz(:surface_index-2),kz_tot(:surface_index,i),&
+      !                   pF1_solids(2:surface_index),pF2_solids(1:surface_index),&
+      !                   pFSWIup_solids,pFSWIdw_solids,surface_flux(i))
       !end if
       !increment(:surface_index-1,i) = temporary(1:surface_index-1,i)-&
       !                                state_vars(i)%value(:surface_index-1)/&
@@ -1245,29 +1249,48 @@ contains
                           temporary(1:surface_index-1,i)
     !end forall
     end do
-  !contains
-    !pure function calculate_fick(c,pF1,pF2,pFSWIup,pFSWIdw,surface_flux)
-    !  real(rk),dimension(surface_index):: calculate_fick
-    !  real(rk),dimension(surface_index-1),intent(in):: c
-    !  real(rk),dimension(surface_index-1),intent(in):: pF1
-    !  real(rk),dimension(surface_index),intent(in):: pF2
-    !  real(rk),intent(in):: pFSWIup
-    !  real(rk),intent(in):: pFSWIdw
-    !  real(rk),intent(in):: surface_flux
+  contains
+    pure function calculate_fick(surface_index,bbl_sed_index,&
+                                 c,dz,kz,pF1,pF2,pFSWIup,pFSWIdw,surface_flux)
+      real(rk),dimension(surface_index):: calculate_fick
 
-    !  integer i
+      integer                               ,intent(in):: surface_index
+      integer                               ,intent(in):: bbl_sed_index
+      !concentrations in layers
+      real(rk),dimension(surface_index-1)   ,intent(in):: c
+      !distances between layer midpoints
+      real(rk),dimension(surface_index-2)   ,intent(in):: dz
+      !total diffusivity coefficients, interfaces
+      real(rk),dimension(surface_index)     ,intent(in):: kz
+      !1/porosity solutes or 1/(1-porosity) solids, layers
+      real(rk),dimension(surface_index-1)   ,intent(in):: pF1
+      !porosity solutes or 1-porosity solids, interfaces
+      real(rk),dimension(surface_index)     ,intent(in):: pF2
+      !for SWI values of porosity factors
+      real(rk)                              ,intent(in):: pFSWIup
+      real(rk)                              ,intent(in):: pFSWIdw
+      !calculate by FABM surface flux
+      real(rk)                              ,intent(in):: surface_flux
 
-    !  !bottom
-    !  calculate_fick(1) = 0._rk
-    !  !sediments
-    !  do i = 2,bbl_sed_index-1
-    !    calculate_fick(i) = -1._rk*pF2(i)*kz(i)*(pF1(i+1)*c(i+1)-pF1(i)*c(i))/dz
-    !  end do
-    !  !SWI
-    !  calculate_fick(bbl_sed_index) =
-    !  !surface
-    !  calculate_fick(surface_index) = surface_flux
-    !end function calculate_fick
+      integer i
+
+      !bottom
+      calculate_fick(1) = 0._rk
+      !sediments
+      do i = 2,bbl_sed_index-1
+        calculate_fick(i) = -1._rk*pF2(i)*kz(i)*(pF1(i)*c(i)-pF1(i-1)*c(i-1))/dz(i-1)
+      end do
+      !SWI
+      i = bbl_sed_index
+      calculate_fick(i) = &
+        -1._rk*pF2(i)*kz(i)*(pFSWIup*c(i)-pFSWIdw*c(i-1))/dz(i-1)
+      !water
+      do i = bbl_sed_index+1, surface_index-1
+        calculate_fick(i) = -1._rk*kz(i)*(c(i)-c(i-1))/dz(i-1)
+      end do
+      !surface
+      calculate_fick(surface_index) = surface_flux
+    end function calculate_fick
   end subroutine spbm_do_diffusion
   !
   !adapted from Phil Wallhead code
