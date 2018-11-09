@@ -67,6 +67,11 @@ module transport
   !for relaxation
   type(type_input):: relaxation_list
 
+  !NaN value
+  !REAL(rk), PARAMETER :: D_QNAN = &
+  !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
+  real(rk) D_QNAN
+
 #if _PURE_ERSEM_ == 1
   !bdepth - bottom depth
   real(rk)                         ,target:: bdepth
@@ -102,11 +107,6 @@ contains
 
     integer water_sediments_index
     integer i, k
-
-    !NaN value
-    !REAL(rk), PARAMETER :: D_QNAN = &
-    !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
-    real(rk) D_QNAN
 
     !NaN
     D_QNAN = 0._rk
@@ -1206,7 +1206,7 @@ contains
     pFSWIdw_solids = pFSWIup_solids
 
     !before calculating fick make it equal zero
-    fick = 0._rk
+    fick = D_QNAN
     !forall (i = 1:number_of_parameters)
     do i = 1,number_of_parameters
       temporary(:surface_index-1,i) = do_diffusive(&
@@ -1337,7 +1337,7 @@ contains
     !NaN value
     !REAL(rk), PARAMETER :: D_QNAN = &
     !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
-    real(rk) D_QNAN
+    !real(rk) D_QNAN
 
     real(rk):: dcc (surface_index-1,number_of_parameters)
     real(rk):: wbi (surface_index-1,number_of_parameters)
@@ -1353,8 +1353,8 @@ contains
     integer i,k,ip
 
     !NaN
-    D_QNAN = 0._rk
-    D_QNAN = D_QNAN / D_QNAN
+    !D_QNAN = 0._rk
+    !D_QNAN = D_QNAN / D_QNAN
 
     dcc  = 0.0_rk
     wbi  = 0.0_rk
