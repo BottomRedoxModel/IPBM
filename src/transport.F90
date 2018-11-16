@@ -1063,8 +1063,8 @@ contains
           = state_vars(j)%value(:surface_index-1)&
            +seconds_per_circle*increment(:,j)
       end do
-      call check_array("after_fabm_do",surface_index,id,i)
-      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      !call check_array("after_fabm_do",surface_index,id,i)
+      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !diffusion
       fick = 0._rk
@@ -1089,8 +1089,8 @@ contains
                                  layer_thicknesses(2:surface_index),&
                                  dz(:surface_index-2),&
                                  ice_algae_velocity)
-      call check_array("after_sedimentation",surface_index,id,i)
-      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      !call check_array("after_sedimentation",surface_index,id,i)
+      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
     end do
   end subroutine day_circle
   !
