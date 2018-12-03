@@ -182,7 +182,12 @@ contains
     allocate(ice_thickness(time))
     ice_thickness = self%get_column(_ICE_THICKNESS_)
 
-    bbl_count = width_bbl/resolution_bbl
+    if (resolution_bbl == 0._rk) then
+      bbl_count = 0
+    else
+      bbl_count = width_bbl/resolution_bbl
+    end if
+    
     sediments_count = width_sediments/resolution_sediments
     allocate(value_2d(ice_layers+length+bbl_count+sediments_count,time))
     water_bbl = 1+bbl_count+sediments_count
