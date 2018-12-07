@@ -41,6 +41,9 @@
 
 #define _WIDTH_SEDIMENTS_           get_spbm_real_parameter('width_sediments')
 #define _RESOLUTION_SEDIMENTS_      get_spbm_real_parameter('resolution_sediments')
+#define _MAX_POROSITY_              get_spbm_real_parameter('max_porosity')
+#define _MIN_POROSITY_              get_spbm_real_parameter('min_porosity')
+#define _BURIAL_VELOCITY_           get_spbm_real_parameter('burial_velocity')
 
 #define _ICE_LAYERS_RESOLUTION_     get_spbm_real_parameter('ice_layers_resolution')
 

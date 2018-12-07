@@ -22,10 +22,7 @@
 
 !porosity parameters:
 !(Soetaert etc., 1996)
-#define _MAX_POROSITY_    0.85_rk
-#define _MIN_POROSITY_    0.45_rk
 #define _POROSITY_DECAY_  0.04_rk
-#define _BURIAL_VELOCITY_ 0.e-10_rk
 
 !molecular diffusivity parameters:
 #define _INFINITE_DILLUTION_MOLECULAR_DIFFUSIVITY_ 1.e-9_rk 
