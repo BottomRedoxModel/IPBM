@@ -354,9 +354,9 @@ contains
         is_solid = .true.,density = 1.5E7_rk)
       call find_set_state_variable(_Het_,&
         is_solid = .true.,density = 1.5E7_rk)
-      call find_set_state_variable(_POML_,&
+      call find_set_state_variable(_POM_,&
         is_solid = .true.,density = 1.5E7_rk)
-      call find_set_state_variable(_POMR_,&
+      call find_set_state_variable(_POC_,&
         is_solid = .true.,density = 1.5E7_rk)
       !small-size POM
       call find_set_state_variable(trim(_SmallPOM_) // "_c",&
@@ -970,8 +970,8 @@ contains
     character(len=64):: alk,dic,dicrel
     character(len=64):: po4,po4rel,no3,no3rel
     character(len=64):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
-    character(len=64):: doml,domr,poml,pomr
-    character(len=64):: domlflux,domrflux,pomlflux,pomrflux
+    character(len=64):: dom,doc,pom,poc
+    character(len=64):: domflux,docflux,pomflux,pocflux
 
     bbl_sed_index   = standard_vars%get_value("bbl_sediments_index")
     ice_water_index = standard_vars%get_value("ice_water_index")
@@ -1035,9 +1035,9 @@ contains
     po4 = _PO4_; po4rel = _PO4_rel_; no3 = _NO3_; no3rel = _NO3_rel_
     si  =  _Si_; sirel  =  _Si_rel_; o2  =  _O2_;  o2rel =  _O2_rel_
     ch4 = _CH4_; ch4rel = _CH4_rel_; ch4flux = _CH4_flux_
-    doml = _DOML_; domr = _DOMR_; poml = _POML_; pomr = _POMR_
-    domlflux = _DOML_flux_; domrflux = _DOMR_flux_
-    pomlflux = _POML_flux_; pomrflux = _POMR_flux_
+    dom = _DOM_; doc = _DOC_; pom = _POM_; poc = _POC_
+    domflux = _DOM_flux_; docflux = _DOC_flux_
+    pomflux = _POM_flux_; pocflux = _POC_flux_
 
     !nullify fickian fluxes
     do j = 1,number_of_parameters
@@ -1050,8 +1050,8 @@ contains
         call relaxation(ice_water_index,water_bbl_index,id,&
                         alk,dic,dicrel,po4,po4rel,no3,no3rel,&
                         si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
-                        doml,domr,poml,pomr,&
-                        domlflux,domrflux,pomlflux,pomrflux,rp)
+                        dom,doc,pom,poc,&
+                        domflux,docflux,pomflux,pocflux,rp)
       end if
       call check_array("after relaxation",surface_index,id,i)
 
@@ -1089,8 +1089,8 @@ contains
                                  layer_thicknesses(2:surface_index),&
                                  dz(:surface_index-2),&
                                  ice_algae_velocity)
-      !call check_array("after_sedimentation",surface_index,id,i)
-      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      call check_array("after_sedimentation",surface_index,id,i)
+      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
     end do
   end subroutine day_circle
   !
@@ -1154,8 +1154,13 @@ contains
         brine_flux(ice_water_index)+1.e-5_rk
     end if
     do i = 1,number_of_parameters
+      !if (state_vars(i)%is_solid.eqv..false.) then
       kz_tot(:,i) = brine_flux+kz_ice_gravity+&
-                    kz_turb+kz_mol+kz_bio*O2stat
+                      kz_turb+kz_mol+kz_bio*O2stat
+      !else
+      !  kz_tot(:,i) = brine_flux+kz_ice_gravity+&
+      !                kz_turb+kz_bio*O2stat
+      !end if
       if (any(ice_algae_ids==i)) then
         kz_tot(ice_water_index+1:surface_index,i) = 0._rk
         kz_tot(ice_water_index,i) = 0._rk
@@ -1701,16 +1706,16 @@ contains
   subroutine relaxation(ice_water_index,water_bbl_index,id,&
                         alk,dic,dicrel,po4,po4rel,no3,no3rel,&
                         si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
-                        doml,domr,poml,pomr,&
-                        domlflux,domrflux,pomlflux,pomrflux,rp)
+                        dom,doc,pom,poc,&
+                        domflux,docflux,pomflux,pocflux,rp)
     integer,intent(in):: ice_water_index,water_bbl_index
     integer,intent(in):: id
 
     character(len=64),intent(in):: alk,dic,dicrel
     character(len=64),intent(in):: po4,po4rel,no3,no3rel
     character(len=64),intent(in):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
-    character(len=64),intent(in):: doml,domr,poml,pomr
-    character(len=64),intent(in):: domlflux,domrflux,pomlflux,pomrflux
+    character(len=64),intent(in):: dom,doc,pom,poc
+    character(len=64),intent(in):: domflux,docflux,pomflux,pocflux
     real(rk)        ,intent(in):: rp
 
     integer number_of_vars
@@ -1733,14 +1738,14 @@ contains
       else if (state_vars(i)%name.eq.ch4) then
         call read_from_nc(ch4flux,i,rp,water_bbl_index,ice_water_index,id,1)
         call read_from_nc(ch4rel ,i,rp,water_bbl_index,ice_water_index,id,0)
-      else if (state_vars(i)%name.eq.doml) then
-        call read_from_nc(domlflux,i,rp,water_bbl_index,ice_water_index,id,1)
-      else if (state_vars(i)%name.eq.domr) then
-        call read_from_nc(domrflux,i,rp,water_bbl_index,ice_water_index,id,1)
-      else if (state_vars(i)%name.eq.poml) then
-        call read_from_nc(pomlflux,i,rp,water_bbl_index,ice_water_index,id,1)
-      else if (state_vars(i)%name.eq.pomr) then
-        call read_from_nc(pomrflux,i,rp,water_bbl_index,ice_water_index,id,1)
+      else if (state_vars(i)%name.eq.dom) then
+        call read_from_nc(domflux,i,rp,water_bbl_index,ice_water_index,id,1)
+      else if (state_vars(i)%name.eq.doc) then
+        call read_from_nc(docflux,i,rp,water_bbl_index,ice_water_index,id,1)
+      else if (state_vars(i)%name.eq.pom) then
+        call read_from_nc(pomflux,i,rp,water_bbl_index,ice_water_index,id,1)
+      else if (state_vars(i)%name.eq.poc) then
+        call read_from_nc(pocflux,i,rp,water_bbl_index,ice_water_index,id,1)
       !save an id to calculate alkalinity after the all elements
       else if (state_vars(i)%name.eq.alk) then
         id_alk = i

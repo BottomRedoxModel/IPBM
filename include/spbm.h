@@ -57,8 +57,8 @@
 #define _O2_                        get_spbm_string_parameter('O2')
 #define _CH4_                       get_spbm_string_parameter('CH4')
 
-#define _DOML_                      get_spbm_string_parameter('DOML')
-#define _DOMR_                      get_spbm_string_parameter('DOMR')
+#define _DOM_                       get_spbm_string_parameter('DOM')
+#define _DOC_                       get_spbm_string_parameter('DOC')
 
 #define _CaCO3_                     get_spbm_string_parameter('CaCO3')
 #define _S0_                        get_spbm_string_parameter('S0')
@@ -72,8 +72,8 @@
 #define _Sipart_                    get_spbm_string_parameter('Sipart')
 #define _Phy_                       get_spbm_string_parameter('Phy')
 #define _Het_                       get_spbm_string_parameter('Het')
-#define _POML_                      get_spbm_string_parameter('POML')
-#define _POMR_                      get_spbm_string_parameter('POMR')
+#define _POM_                       get_spbm_string_parameter('POM')
+#define _POC_                       get_spbm_string_parameter('POC')
 #define _SmallPOM_                  get_spbm_string_parameter('SmallPOM')
 #define _MediumPOM_                 get_spbm_string_parameter('MediumPOM')
 #define _LargePOM_                  get_spbm_string_parameter('LargePOM')
@@ -96,8 +96,8 @@
 #define _CH4_rel_                   get_spbm_string_parameter('CH4rel')
 
 #define _CH4_flux_                  get_spbm_string_parameter('CH4flux')
-#define _DOML_flux_                 get_spbm_string_parameter('DOMLflux')
-#define _DOMR_flux_                 get_spbm_string_parameter('DOMRflux')
-#define _POML_flux_                 get_spbm_string_parameter('POMLflux')
-#define _POMR_flux_                 get_spbm_string_parameter('POMRflux')
+#define _DOM_flux_                  get_spbm_string_parameter('DOMflux')
+#define _DOC_flux_                  get_spbm_string_parameter('DOCflux')
+#define _POM_flux_                  get_spbm_string_parameter('POMflux')
+#define _POC_flux_                  get_spbm_string_parameter('POCflux')
 
