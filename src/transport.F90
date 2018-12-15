@@ -1154,13 +1154,13 @@ contains
         brine_flux(ice_water_index)+1.e-5_rk
     end if
     do i = 1,number_of_parameters
-      !if (state_vars(i)%is_solid.eqv..false.) then
-      kz_tot(:,i) = brine_flux+kz_ice_gravity+&
+      if (state_vars(i)%is_solid.eqv..false.) then
+        kz_tot(:,i) = brine_flux+kz_ice_gravity+&
                       kz_turb+kz_mol+kz_bio*O2stat
-      !else
-      !  kz_tot(:,i) = brine_flux+kz_ice_gravity+&
-      !                kz_turb+kz_bio*O2stat
-      !end if
+      else
+        kz_tot(:,i) = brine_flux+kz_ice_gravity+&
+                      kz_turb+kz_bio*O2stat
+      end if
       if (any(ice_algae_ids==i)) then
         kz_tot(ice_water_index+1:surface_index,i) = 0._rk
         kz_tot(ice_water_index,i) = 0._rk
