@@ -1196,8 +1196,9 @@ contains
       pF2_solutes(bbl_sed_index)*kz_mol(bbl_sed_index)+kz_bio(bbl_sed_index)*O2stat)&
       /(pF2_solutes(bbl_sed_index)*(kz_mol(bbl_sed_index)+kz_bio(bbl_sed_index)*O2stat))
     !top cell of sediments
+    !pF1_solutes should be still bbl_sed_index since we start from 0 index
     pFSWIdw_solutes = (&
-      pF2_solutes(bbl_sed_index)*pF1_solutes(bbl_sed_index-1)*kz_mol(bbl_sed_index)&
+      pF2_solutes(bbl_sed_index)*pF1_solutes(bbl_sed_index)*kz_mol(bbl_sed_index)&
       +kz_bio(bbl_sed_index)*O2stat)&
       /(pF2_solutes(bbl_sed_index)*(kz_mol(bbl_sed_index)+kz_bio(bbl_sed_index)*O2stat))
     !
