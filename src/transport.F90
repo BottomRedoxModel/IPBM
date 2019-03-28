@@ -475,6 +475,9 @@ contains
     real(rk),allocatable,dimension(:):: air_ice_indexes
     real(rk),allocatable,dimension(:):: surface_radiation
 
+    real(rk),dimension(:),allocatable:: &
+             d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
+
     year = _INITIALIZATION_SINCE_YEAR_
 
     allocate(indices(number_of_layers))
@@ -491,6 +494,12 @@ contains
     allocate(surface_radiation(number_of_days))
     surface_radiation = standard_vars%get_column(_SHORTWAVE_RADIATION_)
 
+    !alkalinity changes due to some nutrients advection
+    allocate(d_alk_po4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_nh4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_no3(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_so4(water_bbl_index:ice_water_index-1))
+
     day = standard_vars%first_day()
     call initial_date(day,year)
     !first day cycle
@@ -498,7 +507,7 @@ contains
                           water_bbl_index,bbl_sediments_index,&
                           indices,indices_faces,day,&
                           surface_radiation)
-    !!cycle first year
+    !cycle first year
     call first_year_circle(day,year,ice_water_index,&
                            water_bbl_index,bbl_sediments_index,&
                            indices,indices_faces,&
@@ -554,7 +563,8 @@ contains
 #endif
       call fabm_link_horizontal_data(fabm_model,lat_id,_LATITUDE_)
       call cpu_time(t1)
-      call day_circle(i,surface_index,day,1)
+      call day_circle(i,surface_index,day,1,&
+                      d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
                            indices,indices_faces,i,&
                            int(air_ice_indexes(i)))
@@ -615,6 +625,14 @@ contains
     integer surface_index
     real(rk),allocatable,dimension(:):: air_ice_indexes
     real(rk),allocatable,dimension(:):: depth_faces
+    real(rk),dimension(:),allocatable:: &
+             d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
+
+    !alkalinity changes due to some nutrients advection
+    allocate(d_alk_po4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_nh4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_no3(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_so4(water_bbl_index:ice_water_index-1))
 
     allocate(air_ice_indexes,source = &
              standard_vars%get_column("air_ice_indexes"))
@@ -668,7 +686,8 @@ contains
     call fabm_link_horizontal_data(fabm_model,lat_id,_LATITUDE_)
     !
     do i = 1,counter
-      call day_circle(1,surface_index,day,1)
+      call day_circle(1,surface_index,day,1,&
+                      d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
       allocate(depth_faces,source=&
                standard_vars%get_column(_DEPTH_ON_BOUNDARY_,1))
 
@@ -715,6 +734,14 @@ contains
     integer surface_index
     real(rk),allocatable,dimension(:):: air_ice_indexes
     real(rk),allocatable,dimension(:):: depth_faces
+    real(rk),dimension(:),allocatable:: &
+             d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
+
+    !alkalinity changes due to some nutrients advection
+    allocate(d_alk_po4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_nh4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_no3(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_so4(water_bbl_index:ice_water_index-1))
 
     allocate(air_ice_indexes,source = &
              standard_vars%get_column("air_ice_indexes"))
@@ -783,7 +810,8 @@ contains
 #endif
       call fabm_link_horizontal_data(fabm_model,lat_id,_LATITUDE_)
 
-      call day_circle(pseudo_day,surface_index,day,1)
+      call day_circle(pseudo_day,surface_index,day,1,&
+                      d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
 
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
                            indices,indices_faces,pseudo_day,&
@@ -930,12 +958,17 @@ contains
   !
   !calculate iterations within a day
   !
-  subroutine day_circle(id,surface_index,day,is_relax)
+  subroutine day_circle(id,surface_index,day,is_relax,&
+                        d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
     integer,intent(in):: id !number of the count
     integer,intent(in):: surface_index
     integer,intent(in):: day !day
     integer,intent(in):: is_relax !=1 will implement relaxation
+    real(rk),dimension(:),allocatable,intent(out):: &
+             d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
 
+    real(rk),dimension(:),allocatable:: &
+             d_alk_po4i,d_alk_nh4i,d_alk_no3i,d_alk_so4i
     real(rk),dimension(number_of_layers+1):: face_porosity
     real(rk),dimension(number_of_layers+1):: pF1_solutes
     real(rk),dimension(number_of_layers+1):: pF2_solutes
@@ -1042,6 +1075,18 @@ contains
     domflux = _DOM_flux_; docflux = _DOC_flux_
     pomflux = _POM_flux_; pocflux = _POC_flux_
 
+    !alkalinity changes due to some nutrients advection
+    allocate(d_alk_po4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_nh4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_no3(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_so4(water_bbl_index:ice_water_index-1))
+    d_alk_po4 = 0._rk; d_alk_nh4 = 0._rk
+    d_alk_no3 = 0._rk; d_alk_so4 = 0._rk
+    allocate(d_alk_po4i(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_nh4i(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_no3i(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_so4i(water_bbl_index:ice_water_index-1))
+
     !nullify fickian fluxes
     do j = 1,number_of_parameters
       state_vars(j)%fickian_fluxes = 0._rk
@@ -1054,7 +1099,12 @@ contains
                         alk,dic,dicrel,po4,po4rel,nh4,nh4rel,no3,no3rel,&
                         so4,so4rel,si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
                         dom,doc,pom,poc,&
-                        domflux,docflux,pomflux,pocflux,rp)
+                        domflux,docflux,pomflux,pocflux,rp,&
+                        d_alk_po4i,d_alk_nh4i,d_alk_no3i,d_alk_so4i)
+        d_alk_po4 = d_alk_po4 + d_alk_po4i
+        d_alk_nh4 = d_alk_nh4 + d_alk_nh4i
+        d_alk_no3 = d_alk_no3 + d_alk_no3i
+        d_alk_so4 = d_alk_so4 + d_alk_so4i
       end if
       call check_array("after relaxation",surface_index,id,i)
 
@@ -1711,7 +1761,8 @@ contains
                         alk,dic,dicrel,po4,po4rel,nh4,nh4rel,no3,no3rel,&
                         so4,so4rel,si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
                         dom,doc,pom,poc,&
-                        domflux,docflux,pomflux,pocflux,rp)
+                        domflux,docflux,pomflux,pocflux,rp,&
+                        d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
     integer,intent(in):: ice_water_index,water_bbl_index
     integer,intent(in):: id
 
@@ -1722,22 +1773,31 @@ contains
     character(len=64),intent(in):: dom,doc,pom,poc
     character(len=64),intent(in):: domflux,docflux,pomflux,pocflux
     real(rk)        ,intent(in):: rp
+    real(rk),dimension(water_bbl_index:ice_water_index-1),intent(out):: &
+             d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
 
     integer number_of_vars
     integer i,id_alk
     real(rk),dimension(water_bbl_index:ice_water_index-1):: d_alk
 
     d_alk = 0._rk
+    d_alk_po4 = 0._rk; d_alk_nh4 = 0._rk
+    d_alk_no3 = 0._rk; d_alk_so4 = 0._rk
+
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
       if (state_vars(i)%name.eq.po4) then
         call read_from_nc(po4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk,-1._rk)
+        d_alk_po4 = d_alk
       else if (state_vars(i)%name.eq.nh4) then
         call read_from_nc(nh4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk,+1._rk)
+        d_alk_nh4 = d_alk-d_alk_po4
       else if (state_vars(i)%name.eq.no3) then
         call read_from_nc(no3rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk,-1._rk)
+        d_alk_no3 = d_alk-d_alk_po4-d_alk_nh4
       else if (state_vars(i)%name.eq.so4) then
         call read_from_nc(so4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk,-2._rk)
+        d_alk_so4 = d_alk-d_alk_po4-d_alk_nh4-d_alk_no3
       else if (state_vars(i)%name.eq.si) then
         call read_from_nc(sirel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.o2) then
