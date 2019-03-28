@@ -53,6 +53,7 @@
 #define _PO4_                       get_spbm_string_parameter('PO4')
 #define _NH4_                       get_spbm_string_parameter('NH4')
 #define _NO3_                       get_spbm_string_parameter('NO3')
+#define _SO4_                       get_spbm_string_parameter('SO4')
 #define _Si_                        get_spbm_string_parameter('Si')
 
 #define _O2_                        get_spbm_string_parameter('O2')
@@ -93,6 +94,7 @@
 #define _PO4_rel_                   get_spbm_string_parameter('PO4rel')
 #define _NH4_rel_                   get_spbm_string_parameter('NH4rel')
 #define _NO3_rel_                   get_spbm_string_parameter('NO3rel')
+#define _SO4_rel_                   get_spbm_string_parameter('SO4rel')
 #define _Si_rel_                    get_spbm_string_parameter('Sirel')
 #define _O2_rel_                    get_spbm_string_parameter('O2rel')
 #define _CH4_rel_                   get_spbm_string_parameter('CH4rel')
