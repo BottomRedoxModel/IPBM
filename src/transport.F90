@@ -1789,17 +1789,17 @@ contains
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
       if (state_vars(i)%name.eq.po4) then
-        call read_from_nc(po4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk,-1._rk)
-        d_alk_po4 = d_alk
+        call read_from_nc(po4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk_po4,-1._rk)
+        d_alk = d_alk+d_alk_po4
       else if (state_vars(i)%name.eq.nh4) then
-        call read_from_nc(nh4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk,+1._rk)
-        d_alk_nh4 = d_alk-d_alk_po4
+        call read_from_nc(nh4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk_nh4,+1._rk)
+        d_alk = d_alk+d_alk_nh4
       else if (state_vars(i)%name.eq.no3) then
-        call read_from_nc(no3rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk,-1._rk)
-        d_alk_no3 = d_alk-d_alk_po4-d_alk_nh4
+        call read_from_nc(no3rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk_no3,-1._rk)
+        d_alk = d_alk+d_alk_no3
       else if (state_vars(i)%name.eq.so4) then
-        call read_from_nc(so4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk,-2._rk)
-        d_alk_so4 = d_alk-d_alk_po4-d_alk_nh4-d_alk_no3
+        call read_from_nc(so4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk_so4,-2._rk)
+        d_alk = d_alk+d_alk_so4
       else if (state_vars(i)%name.eq.si) then
         call read_from_nc(sirel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.o2) then
@@ -1940,7 +1940,7 @@ contains
 
     do j = from,till
       dcc = (value(j)-state_vars(i)%value(j))*rp
-      d_alk(j) = d_alk(j)+dcc*k_alk
+      d_alk(j) = dcc*k_alk
       state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
     end do
   end subroutine do_relaxation_array_with_alk
