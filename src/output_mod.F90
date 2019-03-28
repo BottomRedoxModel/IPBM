@@ -38,6 +38,8 @@ module output_mod
     !parameter_ids
     integer            :: z_id,z_id_faces
     integer            :: par_id
+    integer            :: ta_po4_id, ta_nh4_id
+    integer            :: ta_no3_id, ta_so4_id
     integer,allocatable:: standard_id(:)
     integer,allocatable:: parameter_id(:)
     integer,allocatable:: parameter_fluxes_id(:)
@@ -200,12 +202,35 @@ contains
                long_name=fabm_standard_id%variable%long_name,&
                missing_value = &
                fabm_standard_id%variable%missing_value))
+
+    !define alkalinity increments due to advection
+    call check(nf90_def_var(self%nc_id,'TA_due_to_PO4',&
+                NF90_REAL,time_dim_id,self%ta_po4_id))
+    call check(set_attributes(ncid=self%nc_id,id=self%ta_po4_id,&
+                units='mmol m^-3',&
+                long_name='TA change due to advection of PO4'))
+    call check(nf90_def_var(self%nc_id,'TA_due_to_NH4',&
+                NF90_REAL,time_dim_id,self%ta_nh4_id))
+    call check(set_attributes(ncid=self%nc_id,id=self%ta_nh4_id,&
+                units='mmol m^-3',&
+                long_name='TA change due to advection of NH4'))
+    call check(nf90_def_var(self%nc_id,'TA_due_to_NO3',&
+                NF90_REAL,time_dim_id,self%ta_no3_id))
+    call check(set_attributes(ncid=self%nc_id,id=self%ta_no3_id,&
+                units='mmol m^-3',&
+                long_name='TA change due to advection of NO3'))
+    call check(nf90_def_var(self%nc_id,'TA_due_to_SO4',&
+                NF90_REAL,time_dim_id,self%ta_so4_id))
+    call check(set_attributes(ncid=self%nc_id,id=self%ta_so4_id,&
+                units='mmol m^-3',&
+                long_name='TA change due to advection of SO4'))
     !end define
     call check(nf90_enddef(self%nc_id))
   end subroutine initialize
 
   subroutine save(self,model,standard_vars,state_vars,&
-                  z,z_faces,day,air_ice_index)
+                  z,z_faces,day,air_ice_index,&
+                  d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
 
     class(type_output),intent(inout):: self
     type (type_model)                    ,intent(in):: model
@@ -215,6 +240,7 @@ contains
     real(rk),allocatable,dimension(:)    ,intent(in):: z_faces
     integer                              ,intent(in):: day
     integer                              ,intent(in):: air_ice_index
+    real(rk),intent(in),optional:: d_alk_po4, d_alk_nh4, d_alk_no3, d_alk_so4
 
     class(variable)               ,allocatable:: curr
     class(spbm_standard_variables),pointer    :: temporary
@@ -315,6 +341,24 @@ contains
                   dat(self%first_layer:self%last_layer),&
                   start,edges))
 
+      !alkalinity advection changes due to nutrients and sulfates
+      if (present(d_alk_po4).and.present(d_alk_nh4).and.&
+          present(d_alk_no3).and.present(d_alk_so4)) then
+        foo(1) = d_alk_po4
+        call check(nf90_put_var(self%nc_id,self%ta_po4_id,&
+                    foo,start_time,edges_time))
+        foo(1) = d_alk_nh4
+        call check(nf90_put_var(self%nc_id,self%ta_nh4_id,&
+                    foo,start_time,edges_time))
+        foo(1) = d_alk_no3
+        call check(nf90_put_var(self%nc_id,self%ta_no3_id,&
+                    foo,start_time,edges_time))
+        foo(1) = d_alk_so4
+        call check(nf90_put_var(self%nc_id,self%ta_so4_id,&
+                    foo,start_time,edges_time))
+      end if
+
+      !synchronize
       call check(nf90_sync(self%nc_id))
     end if
   end subroutine save

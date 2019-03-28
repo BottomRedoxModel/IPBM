@@ -570,7 +570,9 @@ contains
                            int(air_ice_indexes(i)))
       call netcdf_water%save(fabm_model,standard_vars,state_vars,&
                              depth,depth_faces,i,&
-                             int(air_ice_indexes(i)))
+                             int(air_ice_indexes(i)),&
+                             sum(d_alk_po4),sum(d_alk_nh4),&
+                             sum(d_alk_no3),sum(d_alk_so4))
       call netcdf_sediments%save(fabm_model,standard_vars,state_vars,&
                                  depth,depth_faces,i,&
                                  int(air_ice_indexes(i)))
