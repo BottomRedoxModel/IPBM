@@ -207,22 +207,22 @@ contains
     call check(nf90_def_var(self%nc_id,'TA_due_to_PO4',&
                 NF90_REAL,time_dim_id,self%ta_po4_id))
     call check(set_attributes(ncid=self%nc_id,id=self%ta_po4_id,&
-                units='mmol m^-3',&
+                units='mmol m^-2',&
                 long_name='TA change due to advection of PO4'))
     call check(nf90_def_var(self%nc_id,'TA_due_to_NH4',&
                 NF90_REAL,time_dim_id,self%ta_nh4_id))
     call check(set_attributes(ncid=self%nc_id,id=self%ta_nh4_id,&
-                units='mmol m^-3',&
+                units='mmol m^-2',&
                 long_name='TA change due to advection of NH4'))
     call check(nf90_def_var(self%nc_id,'TA_due_to_NO3',&
                 NF90_REAL,time_dim_id,self%ta_no3_id))
     call check(set_attributes(ncid=self%nc_id,id=self%ta_no3_id,&
-                units='mmol m^-3',&
+                units='mmol m^-2',&
                 long_name='TA change due to advection of NO3'))
     call check(nf90_def_var(self%nc_id,'TA_due_to_SO4',&
                 NF90_REAL,time_dim_id,self%ta_so4_id))
     call check(set_attributes(ncid=self%nc_id,id=self%ta_so4_id,&
-                units='mmol m^-3',&
+                units='mmol m^-2',&
                 long_name='TA change due to advection of SO4'))
     !end define
     call check(nf90_enddef(self%nc_id))
