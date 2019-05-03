@@ -1733,6 +1733,7 @@ contains
       else if (state_vars(i)%name.eq.ch4) then
         call read_from_nc(ch4flux,i,rp,water_bbl_index,ice_water_index,id,1)
         call read_from_nc(ch4rel ,i,rp,water_bbl_index,ice_water_index,id,0)
+        call do_relaxation_single(2000._rk,1,i,1._rk) 
       else if (state_vars(i)%name.eq.doml) then
         call read_from_nc(domlflux,i,rp,water_bbl_index,ice_water_index,id,1)
       else if (state_vars(i)%name.eq.domr) then
