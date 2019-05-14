@@ -52,7 +52,7 @@ module variables_mod
     real(rk) bound_low
     real(rk) density
     real(rk),allocatable,dimension(:):: sinking_velocity
-    !real(rk),allocatable,dimension(:):: fabm_value
+    real(rk),allocatable,dimension(:):: fickian_fluxes
   contains
     procedure:: set_spbm_state_variable
     procedure:: print_state_variable
@@ -78,7 +78,7 @@ contains
     class(spbm_standard_variables),intent(inout):: self
     type(type_input):: kara_input
 
-    !open input netcdf and make list with all variables
+    !open 'input_file_name'nc from spbm.yaml, make list with all variables
     kara_input = type_input(_FILE_NAME_)
     !horizontal variables
     call self%add_var(kara_input,_OCEAN_TIME_)
@@ -182,7 +182,12 @@ contains
     allocate(ice_thickness(time))
     ice_thickness = self%get_column(_ICE_THICKNESS_)
 
-    bbl_count = width_bbl/resolution_bbl
+    if (resolution_bbl == 0._rk) then
+      bbl_count = 0
+    else
+      bbl_count = width_bbl/resolution_bbl
+    end if
+    
     sediments_count = width_sediments/resolution_sediments
     allocate(value_2d(ice_layers+length+bbl_count+sediments_count,time))
     water_bbl = 1+bbl_count+sediments_count
@@ -195,9 +200,9 @@ contains
     call self%add_item(new_var)
     new_var = alone_variable("water_bbl_index","water_bbl_index",'Layer',water_bbl)
     call self%add_item(new_var)
-    new_var = alone_variable("bbl_sediments_index","water_bbl_index",'Layer',bbl_sediments)
+    new_var = alone_variable("bbl_sediments_index","bbl_sediments_index",'Layer',bbl_sediments)
     call self%add_item(new_var)
-    new_var = alone_variable("number_of_boundaries","water_bbl_index",'Layer',total_boundaries)
+    new_var = alone_variable("number_of_boundaries","number_of_boundaries",'Layer',total_boundaries)
     call self%add_item(new_var)
 
     select type(var)
@@ -534,8 +539,12 @@ contains
         max_porosity-min_porosity)*exp(-1._rk*(&
         depth_boundary(1:swi_index,i)-swi_depth(i))/&
         porosity_decay)
+      if (ice_water_index==air_ice_indexes(i)) then
+        porosity(ice_water_index,i) = 1._rk
+      else
+        porosity(ice_water_index,i) = 0.5_rk
+      end if
     end do
-    porosity(ice_water_index,:) = 0.5_rk
     porosity(ice_water_index+1:,:) = &
           self%type_ice%do_brine_relative_volume(&
           .false.,self%get_column(_ICE_THICKNESS_))
@@ -646,6 +655,10 @@ contains
       do i = 1,time
         eddy_kz(air_ice_indexes(i)+1:,i) = D_QNAN
       end do
+
+      !to start not from the bottom most interface
+      eddy_kz(2:bbl_sediments_index,:) = _DISPERSION_COEFFICIENT_
+
       new_var_2d = variable_2d(_TURBULENCE_,&
                                'Eddy diffusivity',var%units,eddy_kz)
       call self%add_item(new_var_2d)
@@ -658,11 +671,13 @@ contains
     allocate(tortuosity(number_of_boundaries,time))
     tortuosity = self%get_array("tortuosity_on_interfaces")
     allocate(value_2d(number_of_boundaries,time))
-    value_2d = _INFINITE_DILLUTION_MOLECULAR_DIFFUSIVITY_
-    value_2d(:bbl_sediments_index,:) = &
+    value_2d = 0._rk
+    value_2d(bbl_sediments_index+1:number_of_boundaries,:) &
+      = _INFINITE_DILLUTION_MOLECULAR_DIFFUSIVITY_
+    value_2d(2:bbl_sediments_index,:) = &
       _RELATIVE_DYNAMIC_VISCOSITY_*&
       _INFINITE_DILLUTION_MOLECULAR_DIFFUSIVITY_/&
-      tortuosity(:bbl_sediments_index,:)**2
+      tortuosity(2:bbl_sediments_index,:)**2
     do i = 1,time
       value_2d(ice_water_index:air_ice_indexes(i),i) = 0._rk
       value_2d(air_ice_indexes(i)+1:,i) = D_QNAN
@@ -684,6 +699,7 @@ contains
           _MIXED_LAYER_DEPTH_)/_DECAY_BIOTURBATION_SCALE_)
       end where
     end do
+    value_2d(1,:) = 0._rk
     do i = 1,time
       value_2d(air_ice_indexes(i)+1:,i) = D_QNAN
     end do

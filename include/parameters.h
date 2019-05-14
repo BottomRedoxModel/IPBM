@@ -1,6 +1,12 @@
+#define _PURE_ERSEM_ 0
+#define _PURE_MAECS_ 0
+
 #define _PI_        3.141592653589793_rk
 #define _DIRICHLET_ 0
 #define _NEUMANN_   1
+
+#define _WIND_SPEED_				5._rk
+#define _AIR_CO2_					380._rk
 
 !light parameters:
 #define _ICE_ALBEDO_       0.744_rk
@@ -16,10 +22,7 @@
 
 !porosity parameters:
 !(Soetaert etc., 1996)
-#define _MAX_POROSITY_    0.95_rk
-#define _MIN_POROSITY_    0.80_rk
 #define _POROSITY_DECAY_  0.04_rk
-#define _BURIAL_VELOCITY_ 1.e-10_rk
 
 !molecular diffusivity parameters:
 #define _INFINITE_DILLUTION_MOLECULAR_DIFFUSIVITY_ 1.e-9_rk 

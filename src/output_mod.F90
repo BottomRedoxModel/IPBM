@@ -38,8 +38,11 @@ module output_mod
     !parameter_ids
     integer            :: z_id,z_id_faces
     integer            :: par_id
+    integer            :: ta_po4_id, ta_nh4_id
+    integer            :: ta_no3_id, ta_so4_id
     integer,allocatable:: standard_id(:)
     integer,allocatable:: parameter_id(:)
+    integer,allocatable:: parameter_fluxes_id(:)
     integer,allocatable:: parameter_id_diag(:)
   contains
     private
@@ -79,7 +82,7 @@ contains
     integer                              ,intent(in):: number_of_layers
 
     type(type_bulk_variable_id):: fabm_standard_id
-  
+
     class(variable)               ,allocatable:: curr
     class(spbm_standard_variables),pointer    :: temporary
 
@@ -108,13 +111,13 @@ contains
     dim_ids(2) = time_dim_id
     dim_ids_faces(1) = z_dim_id_faces
     dim_ids_faces(2) = time_dim_id
-    
+
     !define variables
     call check(nf90_def_var(self%nc_id,"z",&
                 NF90_REAL,z_dim_id,self%z_id))
     call check(nf90_def_var(self%nc_id,"z_faces",&
                 NF90_REAL,z_dim_id_faces,self%z_id_faces))
-    
+
     !to make standard_vars intent(in)
     temporary => standard_vars
     number_of_variables = temporary%count_list()
@@ -149,18 +152,26 @@ contains
       end select
       deallocate(curr)
     end do
-    
+
     allocate(self%parameter_id(size(model%state_variables)))
+    allocate(self%parameter_fluxes_id(size(model%state_variables)))
     do ip = 1,size(model%state_variables)
       call check(nf90_def_var(self%nc_id,&
                  model%state_variables(ip)%name,&
                  NF90_REAL,dim_ids,self%parameter_id(ip)))
+      call check(nf90_def_var(self%nc_id,&
+                 model%state_variables(ip)%name(1:10) // '_flux',&
+                 NF90_REAL,dim_ids_faces,self%parameter_fluxes_id(ip)))
       call check(set_attributes(ncid=self%nc_id,id=self%parameter_id(ip),&
                  units=model%state_variables(ip)%units,&
                  long_name=model%state_variables(ip)%long_name,&
                  missing_value=model%state_variables(ip)%missing_value))
+      call check(set_attributes(ncid=self%nc_id,id=self%parameter_fluxes_id(ip),&
+                 units="Units m^-2 day^-1",&
+                 long_name=model%state_variables(ip)%long_name,&
+                 missing_value=0._rk))
     end do
-    
+
     allocate(self%parameter_id_diag(size(model%diagnostic_variables)))
     do ip = 1,size(model%diagnostic_variables)
       if (model%diagnostic_variables(ip)%save) then
@@ -191,12 +202,35 @@ contains
                long_name=fabm_standard_id%variable%long_name,&
                missing_value = &
                fabm_standard_id%variable%missing_value))
+
+    !define alkalinity increments due to advection
+    call check(nf90_def_var(self%nc_id,'TA_due_to_PO4',&
+                NF90_REAL,time_dim_id,self%ta_po4_id))
+    call check(set_attributes(ncid=self%nc_id,id=self%ta_po4_id,&
+                units='mmol m^-2',&
+                long_name='TA change due to advection of PO4'))
+    call check(nf90_def_var(self%nc_id,'TA_due_to_NH4',&
+                NF90_REAL,time_dim_id,self%ta_nh4_id))
+    call check(set_attributes(ncid=self%nc_id,id=self%ta_nh4_id,&
+                units='mmol m^-2',&
+                long_name='TA change due to advection of NH4'))
+    call check(nf90_def_var(self%nc_id,'TA_due_to_NO3',&
+                NF90_REAL,time_dim_id,self%ta_no3_id))
+    call check(set_attributes(ncid=self%nc_id,id=self%ta_no3_id,&
+                units='mmol m^-2',&
+                long_name='TA change due to advection of NO3'))
+    call check(nf90_def_var(self%nc_id,'TA_due_to_SO4',&
+                NF90_REAL,time_dim_id,self%ta_so4_id))
+    call check(set_attributes(ncid=self%nc_id,id=self%ta_so4_id,&
+                units='mmol m^-2',&
+                long_name='TA change due to advection of SO4'))
     !end define
     call check(nf90_enddef(self%nc_id))
   end subroutine initialize
 
   subroutine save(self,model,standard_vars,state_vars,&
-                  z,z_faces,day,air_ice_index)
+                  z,z_faces,day,air_ice_index,&
+                  d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
 
     class(type_output),intent(inout):: self
     type (type_model)                    ,intent(in):: model
@@ -206,10 +240,11 @@ contains
     real(rk),allocatable,dimension(:)    ,intent(in):: z_faces
     integer                              ,intent(in):: day
     integer                              ,intent(in):: air_ice_index
+    real(rk),intent(in),optional:: d_alk_po4, d_alk_nh4, d_alk_no3, d_alk_so4
 
     class(variable)               ,allocatable:: curr
     class(spbm_standard_variables),pointer    :: temporary
-    
+
     !NaN value
     !REAL(rk), PARAMETER :: D_QNAN = &
     !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
@@ -223,7 +258,7 @@ contains
 
     type(type_bulk_variable_id)  :: fabm_standard_id
     real(rk),dimension(:),pointer:: dat
-    
+
     !NaN
     D_QNAN = 0._rk
     D_QNAN = D_QNAN / D_QNAN
@@ -237,7 +272,7 @@ contains
     start(2) = day
     start_time(1) = day
     edges_time(1) = 1
-    
+
     if (self%first) then
       call check(nf90_put_var(self%nc_id,self%z_id,&
                  z(self%first_layer:self%last_layer),start,edges))
@@ -277,11 +312,14 @@ contains
         end select
       deallocate(curr)
       end do
-      
+
       do ip = 1,size(model%state_variables)
         call check(nf90_put_var(self%nc_id,self%parameter_id(ip),&
                    state_vars(ip)%value(self%first_layer:self%last_layer),&
                    start,edges))
+        call check(nf90_put_var(self%nc_id,self%parameter_fluxes_id(ip),&
+                   state_vars(ip)%fickian_fluxes(self%first_layer:self%last_layer+1),&
+                   start,edges_faces))
       end do
       do ip = 1,size(model%diagnostic_variables)
         if (model%diagnostic_variables(ip)%save) then
@@ -294,7 +332,7 @@ contains
           end if
         end if
       end do
-      
+
       !fabm standard variables
       fabm_standard_id = model%get_bulk_variable_id(&
                 standard_variables%downwelling_photosynthetic_radiative_flux)
@@ -302,7 +340,25 @@ contains
       call check(nf90_put_var(self%nc_id,self%par_id,&
                   dat(self%first_layer:self%last_layer),&
                   start,edges))
-    
+
+      !alkalinity advection changes due to nutrients and sulfates
+      if (present(d_alk_po4).and.present(d_alk_nh4).and.&
+          present(d_alk_no3).and.present(d_alk_so4)) then
+        foo(1) = d_alk_po4
+        call check(nf90_put_var(self%nc_id,self%ta_po4_id,&
+                    foo,start_time,edges_time))
+        foo(1) = d_alk_nh4
+        call check(nf90_put_var(self%nc_id,self%ta_nh4_id,&
+                    foo,start_time,edges_time))
+        foo(1) = d_alk_no3
+        call check(nf90_put_var(self%nc_id,self%ta_no3_id,&
+                    foo,start_time,edges_time))
+        foo(1) = d_alk_so4
+        call check(nf90_put_var(self%nc_id,self%ta_so4_id,&
+                    foo,start_time,edges_time))
+      end if
+
+      !synchronize
       call check(nf90_sync(self%nc_id))
     end if
   end subroutine save
@@ -313,6 +369,7 @@ contains
     if (self%nc_id.ne.-1) then
       call check(nf90_close(self%nc_id))
       deallocate(self%parameter_id)
+      deallocate(self%parameter_fluxes_id)
       deallocate(self%parameter_id_diag)
     end if
     self%nc_id = -1

@@ -13,13 +13,20 @@
 #include "../include/spbm.h"
 #include "../include/parameters.h"
 !
-!main module for transport calculations
+! main module for transport calculations
 !
 module transport
+  ! some fabm modules
   use fabm
   use fabm_config
   use fabm_driver
   use fabm_types
+  ! input_mod contains only one public object (and procedure with similar name)
+  ! type_input, it downloads all 0,1,2 dimension variables from a .nc file
+  use input_mod,only: type_input
+  ! types_mod contains variables and a list variables objects
+  use types_mod,only: variable, variable_2d
+  !
   use variables_mod,only: spbm_standard_variables,&
                           spbm_state_variable
   use yaml_mod !to use a function mentioned in spbm.h
@@ -31,6 +38,7 @@ module transport
   integer previous_ice_index
   integer number_of_parameters
   integer number_of_layers
+  integer seconds_per_circle
   integer ,allocatable,dimension(:):: ice_algae_ids
   real(rk),allocatable,dimension(:):: depth
   real(rk),allocatable,dimension(:):: porosity
@@ -44,6 +52,7 @@ module transport
   real(rk),allocatable,dimension(:),target:: density
   !bcc and scc - arrays for bottom and surface fabm variables
   real(rk),allocatable,dimension(:),target:: bcc,scc
+  real(rk)                         ,target:: realday
   !variables for model
   type(spbm_standard_variables) standard_vars
   type(spbm_state_variable),allocatable,&
@@ -53,17 +62,24 @@ module transport
   type(type_bulk_variable_id)      ,save:: pres_id,par_id
   !for the ERSEM carbonate
   type(type_bulk_variable_id)      ,save:: rho_id
-  type(type_horizontal_variable_id),save:: lon_id,lat_id,ws_id
+  type(type_horizontal_variable_id),save:: lat_id,ws_id
+  type(type_scalar_variable_id)    ,save:: id_yearday !- ersem zenith
+  !for relaxation
+  type(type_input):: relaxation_list
+
+  !NaN value
+  !REAL(rk), PARAMETER :: D_QNAN = &
+  !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
+  real(rk) D_QNAN
+
 #if _PURE_ERSEM_ == 1
   !bdepth - bottom depth
   real(rk)                         ,target:: bdepth
   !taub - bottom stress
   real(rk),allocatable             ,target:: taub
-  real(rk)                         ,target:: realday
   real(rk)                         ,target:: ssf
   !absorption_of_silt value - ersem light
   real(rk),allocatable,dimension(:),target:: aos_value
-  type(type_scalar_variable_id)      ,save:: id_yearday !- ersem zenith
   type(type_horizontal_variable_id)  ,save:: ssf_id !- ersem light
   !absorption_of_silt - ersem light
   type(type_bulk_standard_variable)  ,save:: aos
@@ -72,16 +88,15 @@ module transport
 #if _PURE_MAECS_ == 1
   !bdepth - bottom depth
   real(rk)                         ,target:: bdepth
-  real(rk)                         ,target:: realday
-  type(type_scalar_variable_id)      ,save:: id_yearday !- ersem zenith
   type(type_horizontal_variable_id)  ,save:: bdepth_id
 #endif
 
   interface do_relaxation
     module procedure do_relaxation_single
     module procedure do_relaxation_array
+    module procedure do_relaxation_array_with_alk
+    module procedure do_relaxation_array_alk
   end interface
-
 contains
   !
   !initialize spbm
@@ -89,10 +104,6 @@ contains
   subroutine initialize_spbm()
     integer ,allocatable,dimension(:):: air_ice_indexes
     real(rk),allocatable,dimension(:):: zeros
-    !NaN value
-    !REAL(rk), PARAMETER :: D_QNAN = &
-    !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
-    real(rk) D_QNAN
 
     integer water_sediments_index
     integer i, k
@@ -102,6 +113,7 @@ contains
     D_QNAN = D_QNAN / D_QNAN
 
     call read_spbm_configuration()
+    seconds_per_circle = int(_SECONDS_PER_CIRCLE_)
 
     !initializing fabm from fabm.yaml file
     _LINE_
@@ -111,7 +123,9 @@ contains
     !
     !initializing spbm standard_variables
     !makes grid, it starts from bottom (1) to surface (end point)
+    !after the next line all standard_vars names will be displayed
     standard_vars = spbm_standard_variables()
+    relaxation_list = type_input(_RELAXATION_FILE_NAME_)
     !_PAUSE_
     number_of_layers = standard_vars%get_value(&
                            "number_of_layers")
@@ -129,9 +143,10 @@ contains
     do i = 1,number_of_parameters
       state_vars(i)%name = fabm_model%state_variables(i)%name
       allocate(state_vars(i)%value(number_of_layers))
-      !allocate(state_vars(i)%fabm_value(number_of_layers))
+      allocate(state_vars(i)%fickian_fluxes(number_of_layers+1))
       allocate(state_vars(i)%sinking_velocity(number_of_layers))
       state_vars(i)%value = fabm_model%state_variables(i)%initial_value
+      state_vars(i)%fickian_fluxes = 0._rk
       call state_vars(i)%set_spbm_state_variable(.false.,.false.,&
         _NEUMANN_,_NEUMANN_,0._rk,0._rk,0._rk,zeros)
       !vertical movement rates (m/s, positive for upwards),
@@ -254,10 +269,6 @@ contains
               standard_variables%downwelling_photosynthetic_radiative_flux)
     allocate(radiative_flux(number_of_layers))
     call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
-    !longtitude
-    lon_id  = fabm_model%get_horizontal_variable_id(&
-              standard_variables%longitude)
-    call fabm_link_horizontal_data(fabm_model,lon_id,_LONGITUDE_)
     !latitude
     lat_id  = fabm_model%get_horizontal_variable_id(&
               standard_variables%latitude)
@@ -274,11 +285,11 @@ contains
     rho_id  = fabm_model%get_bulk_variable_id(standard_variables%density)
     allocate(density(number_of_layers))
     call fabm_link_bulk_data(fabm_model,rho_id,density)
-#if _PURE_ERSEM_ == 1
-    !yearday - ersem zenith_angle
+    !yearday - brom_bio, ersem, etc.
     id_yearday = fabm_model%get_scalar_variable_id(&
       standard_variables%number_of_days_since_start_of_the_year)
     call fabm_model%link_scalar(id_yearday,realday)
+#if _PURE_ERSEM_ == 1
     !surface shortwave flux
     ssf_id  = fabm_model%get_horizontal_variable_id(&
               standard_variables%surface_downwelling_shortwave_flux)
@@ -301,9 +312,6 @@ contains
     call fabm_link_horizontal_data(fabm_model,bdepth_id,bdepth)
 #endif
 #if _PURE_MAECS_ == 1
-    id_yearday = fabm_model%get_scalar_variable_id(&
-      standard_variables%number_of_days_since_start_of_the_year)
-    call fabm_model%link_scalar(id_yearday,realday)
     bdepth_id = fabm_model%get_horizontal_variable_id(&
                 standard_variables%bottom_depth)
     bdepth = depth(1)
@@ -344,7 +352,11 @@ contains
       !organic compounds
       call find_set_state_variable(_Phy_,&
         is_solid = .true.,density = 1.5E7_rk)
-      call find_set_state_variable(_PON_,&
+      call find_set_state_variable(_Het_,&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(_POM_,&
+        is_solid = .true.,density = 1.5E7_rk)
+      call find_set_state_variable(_POC_,&
         is_solid = .true.,density = 1.5E7_rk)
       !small-size POM
       call find_set_state_variable(trim(_SmallPOM_) // "_c",&
@@ -439,7 +451,7 @@ contains
         is_solid = .true.,density = 1.5E7_rk*1._rk/16._rk)
       !read (*,*)
     end subroutine
-  end subroutine
+  end subroutine initialize_spbm
   !
   !procedure with the main cycle
   !
@@ -463,6 +475,9 @@ contains
     real(rk),allocatable,dimension(:):: air_ice_indexes
     real(rk),allocatable,dimension(:):: surface_radiation
 
+    real(rk),dimension(:),allocatable:: &
+             d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
+
     year = _INITIALIZATION_SINCE_YEAR_
 
     allocate(indices(number_of_layers))
@@ -479,14 +494,20 @@ contains
     allocate(surface_radiation(number_of_days))
     surface_radiation = standard_vars%get_column(_SHORTWAVE_RADIATION_)
 
+    !alkalinity changes due to some nutrients advection
+    allocate(d_alk_po4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_nh4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_no3(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_so4(water_bbl_index:ice_water_index-1))
+
     day = standard_vars%first_day()
     call initial_date(day,year)
     !first day cycle
-    call first_day_circle(_RE_DAY_,ice_water_index,&
+    call first_day_circle(int(_RE_DAY_),ice_water_index,&
                           water_bbl_index,bbl_sediments_index,&
                           indices,indices_faces,day,&
                           surface_radiation)
-    !!cycle first year
+    !cycle first year
     call first_year_circle(day,year,ice_water_index,&
                            water_bbl_index,bbl_sediments_index,&
                            indices,indices_faces,&
@@ -524,17 +545,13 @@ contains
       !density - for the ERSEM carbonate
       density = standard_vars%get_column(_RHO_,i)+1000._rk
       call fabm_link_bulk_data(fabm_model,rho_id,density)
-#if _PURE_ERSEM_ == 1
-      realday = day !to convert integer to real - ersem zenith_angle
+      realday = day !to convert integer to real
       call fabm_model%link_scalar(id_yearday,realday)
+#if _PURE_ERSEM_ == 1
       ssf = surface_radiative_flux(_LATITUDE_,day)
       call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
       !bottom stress - ersem
       !call fabm_link_horizontal_data(fabm_model,taub_id,taub)
-#endif
-#if _PURE_MAECS_ == 1
-      realday = day !to convert integer to real
-      call fabm_model%link_scalar(id_yearday,realday)
 #endif
 #if _PURE_ERSEM_ == 0 && _PURE_MAECS_ == 0
       !par
@@ -544,14 +561,18 @@ contains
         standard_vars%get_value(_ICE_THICKNESS_ ,i))
       call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif
+      call fabm_link_horizontal_data(fabm_model,lat_id,_LATITUDE_)
       call cpu_time(t1)
-      call day_circle(i,surface_index,day)
+      call day_circle(i,surface_index,day,1,&
+                      d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
                            indices,indices_faces,i,&
                            int(air_ice_indexes(i)))
       call netcdf_water%save(fabm_model,standard_vars,state_vars,&
                              depth,depth_faces,i,&
-                             int(air_ice_indexes(i)))
+                             int(air_ice_indexes(i)),&
+                             sum(d_alk_po4),sum(d_alk_nh4),&
+                             sum(d_alk_no3),sum(d_alk_so4))
       call netcdf_sediments%save(fabm_model,standard_vars,state_vars,&
                                  depth,depth_faces,i,&
                                  int(air_ice_indexes(i)))
@@ -581,7 +602,7 @@ contains
         first_year = first_year+1
       end do
     end subroutine
-  end subroutine
+  end subroutine sarafan
   !
   !first day iteration
   !
@@ -606,6 +627,14 @@ contains
     integer surface_index
     real(rk),allocatable,dimension(:):: air_ice_indexes
     real(rk),allocatable,dimension(:):: depth_faces
+    real(rk),dimension(:),allocatable:: &
+             d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
+
+    !alkalinity changes due to some nutrients advection
+    allocate(d_alk_po4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_nh4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_no3(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_so4(water_bbl_index:ice_water_index-1))
 
     allocate(air_ice_indexes,source = &
              standard_vars%get_column("air_ice_indexes"))
@@ -640,17 +669,13 @@ contains
     !density - for the ERSEM carbonate
     density = standard_vars%get_column(_RHO_,1)+1000._rk
     call fabm_link_bulk_data(fabm_model,rho_id,density)
-#if _PURE_ERSEM_ == 1
     realday = day !to convert integer to real - ersem zenith_angle
     call fabm_model%link_scalar(id_yearday,realday)
+#if _PURE_ERSEM_ == 1
     ssf = surface_radiative_flux(_LATITUDE_,day)
     call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
     !bottom stress - ersem
     !call fabm_link_horizontal_data(fabm_model,taub_id,taub)
-#endif
-#if _PURE_MAECS_ == 1
-    realday = day !to convert integer to real
-    call fabm_model%link_scalar(id_yearday,realday)
 #endif
 #if _PURE_ERSEM_ == 0 && _PURE_MAECS_ == 0
     !par
@@ -660,20 +685,22 @@ contains
       standard_vars%get_value(_ICE_THICKNESS_ ,1))
     call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif
+    call fabm_link_horizontal_data(fabm_model,lat_id,_LATITUDE_)
     !
     do i = 1,counter
-      call day_circle(1,surface_index,day)
+      call day_circle(1,surface_index,day,1,&
+                      d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
       allocate(depth_faces,source=&
                standard_vars%get_column(_DEPTH_ON_BOUNDARY_,1))
 
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
-                           indices,indices_faces,1,&
+                           indices,indices_faces,i,&
                            int(air_ice_indexes(1)))
       call netcdf_water%save(fabm_model,standard_vars,state_vars,&
-                             depth,depth_faces,1,&
+                             depth,depth_faces,i,&
                              int(air_ice_indexes(1)))
       call netcdf_sediments%save(fabm_model,standard_vars,state_vars,&
-                                 depth,depth_faces,1,&
+                                 depth,depth_faces,i,&
                                  int(air_ice_indexes(1)))
 
       write(*,*) "Stabilizing initial array of values, in progress ..."
@@ -683,7 +710,7 @@ contains
     call netcdf_ice%close()
     call netcdf_water%close()
     call netcdf_sediments%close()
-  end subroutine
+  end subroutine first_day_circle
   !
   !first year iteration
   !
@@ -709,12 +736,20 @@ contains
     integer surface_index
     real(rk),allocatable,dimension(:):: air_ice_indexes
     real(rk),allocatable,dimension(:):: depth_faces
+    real(rk),dimension(:),allocatable:: &
+             d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
+
+    !alkalinity changes due to some nutrients advection
+    allocate(d_alk_po4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_nh4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_no3(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_so4(water_bbl_index:ice_water_index-1))
 
     allocate(air_ice_indexes,source = &
              standard_vars%get_column("air_ice_indexes"))
     day = inday; year = inyear;
     days_in_year = 365+merge(1,0,(mod(year,4).eq.0))
-    counter = days_in_year*_RE_YEAR_
+    counter = days_in_year*int(_RE_YEAR_)
 
     netcdf_ice = type_output(fabm_model,standard_vars,'ice_year.nc',&
                          ice_water_index,number_of_layers,&
@@ -759,17 +794,13 @@ contains
       !density - for the ERSEM carbonate
       density = standard_vars%get_column(_RHO_,pseudo_day)+1000._rk
       call fabm_link_bulk_data(fabm_model,rho_id,density)
-#if _PURE_ERSEM_ == 1
       realday = day !to convert integer to real - ersem zenith_angle
       call fabm_model%link_scalar(id_yearday,realday)
+#if _PURE_ERSEM_ == 1
       ssf = surface_radiative_flux(_LATITUDE_,day)
       call fabm_link_horizontal_data(fabm_model,ssf_id,ssf)
       !bottom stress - ersem
       !call fabm_link_horizontal_data(fabm_model,taub_id,taub)
-#endif
-#if _PURE_MAECS_ == 1
-      realday = day !to convert integer to real
-      call fabm_model%link_scalar(id_yearday,realday)
 #endif
 #if _PURE_ERSEM_ == 0 && _PURE_MAECS_ == 0
       !par
@@ -779,8 +810,10 @@ contains
         standard_vars%get_value(_ICE_THICKNESS_ ,pseudo_day))
       call fabm_link_bulk_data(fabm_model,par_id,radiative_flux)
 #endif
+      call fabm_link_horizontal_data(fabm_model,lat_id,_LATITUDE_)
 
-      call day_circle(pseudo_day,surface_index,day)
+      call day_circle(pseudo_day,surface_index,day,1,&
+                      d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
 
       call netcdf_ice%save(fabm_model,standard_vars,state_vars,&
                            indices,indices_faces,pseudo_day,&
@@ -801,7 +834,7 @@ contains
     call netcdf_ice%close()
     call netcdf_water%close()
     call netcdf_sediments%close()
-  end subroutine
+  end subroutine first_year_circle
   !
   !keeps actual day and year
   !
@@ -815,7 +848,7 @@ contains
       year = year+1
       day = day-days
     end if
-  end subroutine
+  end subroutine date
   !
   !return 1 (integer) in case of leap year
   !
@@ -856,7 +889,7 @@ contains
     !This is the approximation used in Yakushev and Sorensen (2013) for OXYDEP
     surface_radiative_flux = max(0.0_rk, Io*cos((latitude-decl)*_PI_/180.0_rk))
     surface_radiative_flux = _PAR_PART_*surface_radiative_flux
-  end function
+  end function surface_radiative_flux
   !
   !calculates PAR in the ice and water columns
   !
@@ -905,28 +938,39 @@ contains
     extinction = extinction+_BACKGROUND_ATTENUATION_+ &
                             _SILT_ATTENUATION_* &
                             _SILT_CONCENTRATION_
-    do i = ice_water_index-1, bbl_sediments_index, -1
-      !extinction over layer i with thickness cell(i)
-      cell_extinction = extinction(i)*cell(i)
-      !extinction factor due to layer i (0<extfac<1)
-      extfac = exp(-cell_extinction)
-      radiative_flux(i) = buffer/cell_extinction*(1.0_rk-extfac)
-      buffer = buffer*extfac
-    end do
+    if (any(extinction(:)<0.000001_rk)) then
+      radiative_flux(bbl_sediments_index:ice_water_index-1)&
+        = buffer
+    else
+      do i = ice_water_index-1, bbl_sediments_index, -1
+        !extinction over layer i with thickness cell(i)
+        cell_extinction = extinction(i)*cell(i)
+        !extinction factor due to layer i (0<extfac<1)
+        extfac = exp(-cell_extinction)
+        radiative_flux(i) = buffer/cell_extinction*(1.0_rk-extfac)
+        buffer = buffer*extfac
+      end do
+    end if
     radiative_flux(:bbl_sediments_index-1) = 0._rk
     !in the cases when surf flux isn't PAR
     if (_IS_SHORTWAVE_RADIATION_IS_PAR_ == 0) then
       radiative_flux = _PAR_PART_*radiative_flux
     end if
-  end subroutine
+  end subroutine calculate_radiative_flux
   !
   !calculate iterations within a day
   !
-  subroutine day_circle(id,surface_index,day)
+  subroutine day_circle(id,surface_index,day,is_relax,&
+                        d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
     integer,intent(in):: id !number of the count
     integer,intent(in):: surface_index
     integer,intent(in):: day !day
+    integer,intent(in):: is_relax !=1 will implement relaxation
+    real(rk),dimension(:),allocatable,intent(out):: &
+             d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
 
+    real(rk),dimension(:),allocatable:: &
+             d_alk_po4i,d_alk_nh4i,d_alk_no3i,d_alk_so4i
     real(rk),dimension(number_of_layers+1):: face_porosity
     real(rk),dimension(number_of_layers+1):: pF1_solutes
     real(rk),dimension(number_of_layers+1):: pF2_solutes
@@ -945,20 +989,29 @@ contains
     real(rk),dimension(:),allocatable:: u_b
     real(rk) brine_release
     real(rk) dphidz_SWI
-    integer i,j,bbl_sed_index,ice_water_index
+    integer i,j,bbl_sed_index,ice_water_index,water_bbl_index
     integer number_of_circles
     !fabm logical parameters
     logical:: repair=.true.,valid
     !index for boundaries so for layers it should be -1
     !increment for fabm do
     real(rk),dimension(surface_index-1,number_of_parameters):: increment
-    !increment for diffusion
-    real(rk),dimension(surface_index-1,number_of_parameters):: dcc
-    ! in cm / day
+    !fickian diffusive fluxes
+    real(rk),dimension(number_of_layers+1,number_of_parameters):: fick
+    !in cm / day
     real(rk):: ice_algae_velocity
+    !relaxation names and relaxation multiplier parameter
+    real(rk):: rp
+    character(len=64):: alk,dic,dicrel
+    character(len=64):: po4,po4rel,nh4,nh4rel,no3,no3rel
+    character(len=64):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
+    character(len=64):: so4,so4rel
+    character(len=64):: dom,doc,pom,poc
+    character(len=64):: domflux,docflux,pomflux,pocflux
 
     bbl_sed_index   = standard_vars%get_value("bbl_sediments_index")
     ice_water_index = standard_vars%get_value("ice_water_index")
+    water_bbl_index = standard_vars%get_value("water_bbl_index")
     !Factor to convert [mass per unit total volume]
     !to [mass per unit volume pore water] for solutes in sediments
     !first zero for gotm diff solver
@@ -1002,116 +1055,84 @@ contains
     !distance between centers of the layers
     dz = standard_vars%get_column("dz",id)
 
-    if (mod(60*60*24,_SECONDS_PER_CIRCLE_)/=0) then
-      call fatal_error("Check _SECONDS_PER_CIRCLE_",&
-                       "should fit 86400/_SECONDS_PER_CIRCLE_=integer")
+    if (mod(60*60*24,seconds_per_circle)/=0) then
+      call fatal_error("Check seconds_per_circle",&
+                       "should fit 86400/seconds_per_circle=integer")
     else
-      number_of_circles = int(60*60*24/_SECONDS_PER_CIRCLE_)
+      number_of_circles = int(60*60*24/seconds_per_circle)
     end if
     call recalculate_ice(id,brine_release)
 
     ! in cm / day
     ice_algae_velocity = _IALGAE_VELOCITY_
-    !
-    call relaxation(ice_water_index,bbl_sed_index,day)
+    ! for relaxation
+    rp = _RELAXATION_PARAMETER_
+    alk = _Alk_; dic = _DIC_; dicrel = _DIC_rel_
+    po4 = _PO4_; po4rel = _PO4_rel_;
+    nh4 = _NH4_; nh4rel = _NH4_rel_; no3 = _NO3_; no3rel = _NO3_rel_
+    so4 = _SO4_; so4rel = _SO4_rel_
+    si  =  _Si_; sirel  =  _Si_rel_; o2  =  _O2_;  o2rel =  _O2_rel_
+    ch4 = _CH4_; ch4rel = _CH4_rel_; ch4flux = _CH4_flux_
+    dom = _DOM_; doc = _DOC_; pom = _POM_; poc = _POC_
+    domflux = _DOM_flux_; docflux = _DOC_flux_
+    pomflux = _POM_flux_; pocflux = _POC_flux_
+
+    !alkalinity changes due to some nutrients advection
+    allocate(d_alk_po4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_nh4(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_no3(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_so4(water_bbl_index:ice_water_index-1))
+    d_alk_po4 = 0._rk; d_alk_nh4 = 0._rk
+    d_alk_no3 = 0._rk; d_alk_so4 = 0._rk
+    allocate(d_alk_po4i(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_nh4i(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_no3i(water_bbl_index:ice_water_index-1))
+    allocate(d_alk_so4i(water_bbl_index:ice_water_index-1))
+
+    !nullify fickian fluxes
+    do j = 1,number_of_parameters
+      state_vars(j)%fickian_fluxes = 0._rk
+    end do
 
     do i = 1,number_of_circles
-
-      !diffusion
-      !dcc = 0._rk
-      call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
-                             pF1_solutes,pF2_solutes,pF1_solids,&
-                             pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
-                             layer_thicknesses,brine_release,dcc)
-      !call check_array("after_diffusion",surface_index,id,i)
-      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      if (is_relax==1) then
+        !it applies only on the water column layers except bbl
+        call relaxation(ice_water_index,water_bbl_index,id,&
+                        alk,dic,dicrel,po4,po4rel,nh4,nh4rel,no3,no3rel,&
+                        so4,so4rel,si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
+                        dom,doc,pom,poc,&
+                        domflux,docflux,pomflux,pocflux,rp,&
+                        d_alk_po4i,d_alk_nh4i,d_alk_no3i,d_alk_so4i)
+        d_alk_po4 = d_alk_po4 + d_alk_po4i
+        d_alk_nh4 = d_alk_nh4 + d_alk_nh4i
+        d_alk_no3 = d_alk_no3 + d_alk_no3i
+        d_alk_so4 = d_alk_so4 + d_alk_so4i
+      end if
+      call check_array("after relaxation",surface_index,id,i)
 
       !biogeochemistry
       increment = 0._rk
-      do j = 1,number_of_parameters
-        !if (state_vars(j)%is_solid.neqv..true. .and. &
-        !    state_vars(j)%is_gas  .neqv..true.) then
-        !for solutes:
-        if (state_vars(j)%is_solid.neqv..true.) then
-          !sedimants domain
-          state_vars(j)%value(:bbl_sed_index-1)&
-            = state_vars(j)%value(:bbl_sed_index-1)&
-            / porosity(:bbl_sed_index-1)
-          !ice domain
-          state_vars(j)%value(ice_water_index:surface_index-1)&
-            = state_vars(j)%value(ice_water_index:surface_index-1)&
-            / porosity(ice_water_index:surface_index-1)
-        !for solids:
-        else
-          !sediments domain
-          state_vars(j)%value(:bbl_sed_index-1)&
-            = state_vars(j)%value(:bbl_sed_index-1)&
-            * pF1_solids(2:bbl_sed_index)
-          !
-          !ice domain
-          !all solids in the ice domain have similar
-          !both brine and total volume concentrations
-        end if
-      end do
-      !call check_array("after_concentrations_recalculation",surface_index,id,i)
       call fabm_do(fabm_model,1,surface_index-1,increment)
       do j = 1,number_of_parameters
-        !if (state_vars(j)%is_solid.neqv..true. .and. &
-        !    state_vars(j)%is_gas  .neqv..true.) then
-        !for solutes:
-        if (state_vars(j)%is_solid.neqv..true.) then
-          !sediments_domain
-          increment(:bbl_sed_index-1,j) &
-            = _SECONDS_PER_CIRCLE_*increment(:bbl_sed_index-1,j)
-          state_vars(j)%value(:bbl_sed_index-1)&
-            = (state_vars(j)%value(:bbl_sed_index-1)&
-            + increment(:bbl_sed_index-1,j))&
-            * porosity(:bbl_sed_index-1)
-          !water domain
-          state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
-            = state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
-            + _SECONDS_PER_CIRCLE_&
-            * increment(bbl_sed_index:ice_water_index-1,j)
-          !ice_domain
-          increment(ice_water_index:surface_index-1,j) &
-            = _SECONDS_PER_CIRCLE_*increment(ice_water_index:surface_index-1,j)
-          state_vars(j)%value(ice_water_index:surface_index-1)&
-            = (state_vars(j)%value(ice_water_index:surface_index-1)&
-            + increment(ice_water_index:surface_index-1,j))&
-            * porosity(ice_water_index:surface_index-1)
-        !for solids:
-        else
-          !sediments domain
-          increment(:bbl_sed_index-1,j) &
-            = _SECONDS_PER_CIRCLE_*increment(:bbl_sed_index-1,j)
-          state_vars(j)%value(:bbl_sed_index-1)&
-            = (state_vars(j)%value(:bbl_sed_index-1)&
-            + increment(:bbl_sed_index-1,j))&
-            / pF1_solids(2:bbl_sed_index)
-          !water domain
-          state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
-            = state_vars(j)%value(bbl_sed_index:ice_water_index-1)&
-            + _SECONDS_PER_CIRCLE_&
-            * increment(bbl_sed_index:ice_water_index-1,j)
-          !ice_domain
-          !porosity is needed to constrain production
-          increment(ice_water_index:surface_index-1,j)&
-            = _SECONDS_PER_CIRCLE_&
-            * increment(ice_water_index:surface_index-1,j)&
-            * porosity(ice_water_index:surface_index-1)
-          state_vars(j)%value(ice_water_index:surface_index-1)&
-            = state_vars(j)%value(ice_water_index:surface_index-1)&
-            + increment(ice_water_index:surface_index-1,j)
-
-        end if
+        state_vars(j)%value(:surface_index-1)&
+          = state_vars(j)%value(:surface_index-1)&
+           +seconds_per_circle*increment(:,j)
       end do
-      !do j = 1,number_of_parameters
-      !    state_vars(j)%value(:surface_index-1) = &
-      !      state_vars(j)%value(:surface_index-1)+&
-      !      _SECONDS_PER_CIRCLE_*increment(:,j)
-      !end do
       !call check_array("after_fabm_do",surface_index,id,i)
       call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+
+      !diffusion
+      fick = 0._rk
+      call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
+                             pF1_solutes,pF2_solutes,pF1_solids,&
+                             pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
+                             layer_thicknesses,dz,brine_release,fick)
+      call check_array("after_diffusion",surface_index,id,i)
+      do j = 1,number_of_parameters
+        state_vars(j)%fickian_fluxes = state_vars(j)%fickian_fluxes(:)&
+                                      +fick(:,j)*seconds_per_circle
+      end do
+      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
 
       !sedimentation
       call spbm_do_sedimentation(surface_index,bbl_sed_index,&
@@ -1123,10 +1144,10 @@ contains
                                  layer_thicknesses(2:surface_index),&
                                  dz(:surface_index-2),&
                                  ice_algae_velocity)
-      !call check_array("after_sedimentation",surface_index,id,i)
-      call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
+      call check_array("after_sedimentation",surface_index,id,i)
+      !call fabm_check_state(fabm_model,1,surface_index-1,repair,valid)
     end do
-  end subroutine
+  end subroutine day_circle
   !
   !diffusion part
   !
@@ -1134,7 +1155,7 @@ contains
              surface_index,bbl_sed_index,ice_water_index,&
              pF1_solutes,pF2_solutes,pF1_solids,&
              pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
-             layer_thicknesses,brine_release,increment)
+             layer_thicknesses,dz,brine_release,fick)
     use diff_mod
 
     integer,intent(in):: surface_index
@@ -1149,10 +1170,12 @@ contains
     real(rk),dimension(number_of_layers+1),intent(in):: kz_turb
     real(rk),dimension(number_of_layers+1),intent(in):: kz_ice_gravity
     real(rk),dimension(number_of_layers+1),intent(in):: layer_thicknesses
+    ! distance between centers of the layers
+    real(rk),dimension(number_of_layers-1),intent(in):: dz
     real(rk)                              ,intent(in):: brine_release
 
-    real(rk),dimension(surface_index-1,number_of_parameters),&
-                                           intent(out):: increment
+    real(rk),dimension(number_of_layers+1,number_of_parameters),&
+                                           intent(out):: fick
 
     type(spbm_state_variable):: oxygen
     real(rk),dimension(number_of_layers+1):: ones
@@ -1186,8 +1209,13 @@ contains
         brine_flux(ice_water_index)+1.e-5_rk
     end if
     do i = 1,number_of_parameters
-      kz_tot(:,i) = brine_flux+kz_ice_gravity+&
-                    kz_turb+kz_mol+kz_bio*O2stat
+      if (state_vars(i)%is_solid.eqv..false.) then
+        kz_tot(:,i) = brine_flux+kz_ice_gravity+&
+                      kz_turb+kz_mol+kz_bio*O2stat
+      else
+        kz_tot(:,i) = brine_flux+kz_ice_gravity+&
+                      kz_turb+kz_bio*O2stat
+      end if
       if (any(ice_algae_ids==i)) then
         kz_tot(ice_water_index+1:surface_index,i) = 0._rk
         kz_tot(ice_water_index,i) = 0._rk
@@ -1216,16 +1244,17 @@ contains
     !       p_1  = (phi_0/phi_1*Km + Kb) / (phi_0*(Km+Kb))
     !and subscripts refer to SWI (0), below (1), and above (-1)
     !
-    !top cell of sediments
-    pFSWIup_solutes = (pF1_solutes(bbl_sed_index+1)*&
-      pF2_solutes(bbl_sed_index)*kz_mol(bbl_sed_index)+&
-      kz_bio(bbl_sed_index)*O2stat)/(pF2_solutes(bbl_sed_index)*&
-      (kz_mol(bbl_sed_index)+kz_bio(bbl_sed_index)*O2stat))
+    !same as in the desctription, but axes go upwards
     !bottom cell of water column
-    pFSWIdw_solutes = (pF1_solutes(bbl_sed_index)*&
-      pF2_solutes(bbl_sed_index)*kz_mol(bbl_sed_index)+&
-      kz_bio(bbl_sed_index)*O2stat)/(pF2_solutes(bbl_sed_index)*&
-      (kz_mol(bbl_sed_index)+kz_bio(bbl_sed_index)*O2stat))
+    pFSWIup_solutes = (&
+      pF2_solutes(bbl_sed_index)*kz_mol(bbl_sed_index)+kz_bio(bbl_sed_index)*O2stat)&
+      /(pF2_solutes(bbl_sed_index)*(kz_mol(bbl_sed_index)+kz_bio(bbl_sed_index)*O2stat))
+    !top cell of sediments
+    !pF1_solutes should be still bbl_sed_index since we start from 0 index
+    pFSWIdw_solutes = (&
+      pF2_solutes(bbl_sed_index)*pF1_solutes(bbl_sed_index)*kz_mol(bbl_sed_index)&
+      +kz_bio(bbl_sed_index)*O2stat)&
+      /(pF2_solutes(bbl_sed_index)*(kz_mol(bbl_sed_index)+kz_bio(bbl_sed_index)*O2stat))
     !
     !(PW) solids:
     !fick_SWI = -Kb/dz*(C_1 - C_-1)   [interphase bioturb]
@@ -1237,11 +1266,13 @@ contains
     pFSWIup_solids = 1.0_rk/(1.0_rk-pF2_solids(bbl_sed_index))
     pFSWIdw_solids = pFSWIup_solids
 
+    !before calculating fick make it equal zero
+    fick = D_QNAN
     !forall (i = 1:number_of_parameters)
     do i = 1,number_of_parameters
       temporary(:surface_index-1,i) = do_diffusive(&
           N       = surface_index-1,&
-          dt      = _SECONDS_PER_CIRCLE_,&
+          dt      = seconds_per_circle,&
           cnpar   = 0.6_rk,&
           posconc = 1,&
           h    = layer_thicknesses(:surface_index),&
@@ -1267,14 +1298,72 @@ contains
           pFSWIdw_solutes = pFSWIdw_solutes,&
           pFSWIup_solids = pFSWIup_solids,&
           pFSWIdw_solids = pFSWIdw_solids)
-      increment(:surface_index-1,i) = temporary(1:surface_index-1,i)-&
-                                      state_vars(i)%value(:surface_index-1)/&
-                                      _SECONDS_PER_CIRCLE_
+      !calculate fickian diffusive fluxes
+      if (state_vars(i)%is_solid.eqv..false.) then
+        fick(:surface_index,i) = &
+          calculate_fick(surface_index,bbl_sed_index,&
+                         state_vars(i)%value(:surface_index-1),&
+                         dz(:surface_index-2),kz_tot(:surface_index,i),&
+                         pF1_solutes(2:surface_index),pF2_solutes(1:surface_index),&
+                         pFSWIup_solutes,pFSWIdw_solutes,surface_flux(i))
+      else
+        fick(:surface_index,i) = &
+          calculate_fick(surface_index,bbl_sed_index,&
+                         state_vars(i)%value(:surface_index-1),&
+                         dz(:surface_index-2),kz_tot(:surface_index,i),&
+                         pF1_solids(2:surface_index),pF2_solids(1:surface_index),&
+                         pFSWIup_solids,pFSWIdw_solids,surface_flux(i))
+      end if
+      !increment(:surface_index-1,i) = temporary(1:surface_index-1,i)-&
+      !                                state_vars(i)%value(:surface_index-1)/&
+      !                                seconds_per_circle
       state_vars(i)%value(1:surface_index-1) = &
                           temporary(1:surface_index-1,i)
     !end forall
     end do
-  end subroutine
+  contains
+    pure function calculate_fick(surface_index,bbl_sed_index,&
+                                 c,dz,kz,pF1,pF2,pFSWIup,pFSWIdw,surface_flux)
+      integer                               ,intent(in):: surface_index
+      integer                               ,intent(in):: bbl_sed_index
+      !concentrations in layers
+      real(rk),dimension(surface_index-1)   ,intent(in):: c
+      !distances between layer midpoints
+      real(rk),dimension(surface_index-2)   ,intent(in):: dz
+      !total diffusivity coefficients, interfaces
+      real(rk),dimension(surface_index)     ,intent(in):: kz
+      !1/porosity solutes or 1/(1-porosity) solids, layers
+      real(rk),dimension(surface_index-1)   ,intent(in):: pF1
+      !porosity solutes or 1-porosity solids, interfaces
+      real(rk),dimension(surface_index)     ,intent(in):: pF2
+      !for SWI values of porosity factors
+      real(rk)                              ,intent(in):: pFSWIup
+      real(rk)                              ,intent(in):: pFSWIdw
+      !calculate by FABM surface flux
+      real(rk)                              ,intent(in):: surface_flux
+
+      real(rk),dimension(surface_index):: calculate_fick
+
+      integer i
+
+      !bottom
+      calculate_fick(1) = 0._rk
+      !sediments
+      do i = 2,bbl_sed_index-1
+        calculate_fick(i) = -1._rk*pF2(i)*kz(i)*(pF1(i)*c(i)-pF1(i-1)*c(i-1))/dz(i-1)
+      end do
+      !SWI
+      i = bbl_sed_index
+      calculate_fick(i) = &
+        -1._rk*pF2(i)*kz(i)*(pFSWIup*c(i)-pFSWIdw*c(i-1))/dz(i-1)
+      !water
+      do i = bbl_sed_index+1, surface_index-1
+        calculate_fick(i) = -1._rk*kz(i)*(c(i)-c(i-1))/dz(i-1)
+      end do
+      !surface
+      calculate_fick(surface_index) = surface_flux
+    end function calculate_fick
+  end subroutine spbm_do_diffusion
   !
   !adapted from Phil Wallhead code
   !calculates vertical advection (sedimentation)
@@ -1309,7 +1398,7 @@ contains
     !NaN value
     !REAL(rk), PARAMETER :: D_QNAN = &
     !          TRANSFER((/ Z'00000000', Z'7FF80000' /),1.0_rk)
-    real(rk) D_QNAN
+    !real(rk) D_QNAN
 
     real(rk):: dcc (surface_index-1,number_of_parameters)
     real(rk):: wbi (surface_index-1,number_of_parameters)
@@ -1325,8 +1414,8 @@ contains
     integer i,k,ip
 
     !NaN
-    D_QNAN = 0._rk
-    D_QNAN = D_QNAN / D_QNAN
+    !D_QNAN = 0._rk
+    !D_QNAN = D_QNAN / D_QNAN
 
     dcc  = 0.0_rk
     wbi  = 0.0_rk
@@ -1520,7 +1609,7 @@ contains
     do i = 1,number_of_parameters
       do k = 1,surface_index-1
           state_vars(i)%value(k) = state_vars(i)%value(k)+&
-                                   _SECONDS_PER_CIRCLE_*dcc(k,i)
+                                   seconds_per_circle*dcc(k,i)
       end do
     end do
     !call state_vars(1)%print_state_variable()
@@ -1666,85 +1755,210 @@ contains
     end do
     call fatal_error("Search state variable",&
                      "No such variable")
-  end subroutine
+  end subroutine find_set_state_variable
   !
   !
   !
-  subroutine relaxation(ice_water_index,bbl_sed_index,day)
-    integer,intent(in):: ice_water_index,bbl_sed_index
-    integer,intent(in):: day
+  subroutine relaxation(ice_water_index,water_bbl_index,id,&
+                        alk,dic,dicrel,po4,po4rel,nh4,nh4rel,no3,no3rel,&
+                        so4,so4rel,si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
+                        dom,doc,pom,poc,&
+                        domflux,docflux,pomflux,pocflux,rp,&
+                        d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
+    integer,intent(in):: ice_water_index,water_bbl_index
+    integer,intent(in):: id
+
+    character(len=64),intent(in):: alk,dic,dicrel
+    character(len=64),intent(in):: po4,po4rel,nh4,nh4rel,no3,no3rel
+    character(len=64),intent(in):: so4,so4rel
+    character(len=64),intent(in):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
+    character(len=64),intent(in):: dom,doc,pom,poc
+    character(len=64),intent(in):: domflux,docflux,pomflux,pocflux
+    real(rk)        ,intent(in):: rp
+    real(rk),dimension(water_bbl_index:ice_water_index-1),intent(out):: &
+             d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
 
     integer number_of_vars
-    integer i
+    integer i,id_alk
+    real(rk),dimension(water_bbl_index:ice_water_index-1):: d_alk
+
+    d_alk = 0._rk
+    d_alk_po4 = 0._rk; d_alk_nh4 = 0._rk
+    d_alk_no3 = 0._rk; d_alk_so4 = 0._rk
 
     number_of_vars = size(state_vars)
     do i = 1,number_of_vars
-      if (state_vars(i)%name.eq._DIC_) then
-        call do_relaxation(1930._rk,ice_water_index-1,i)
-        call do_relaxation(2280._rk,bbl_sed_index,i)
-      else if (state_vars(i)%name.eq._Alk_) then
-        call do_relaxation(2000._rk,ice_water_index-1,i)
-        call do_relaxation(2350._rk,bbl_sed_index,i)
-      else if (state_vars(i)%name.eq._PO4_) then
-        call do_relaxation(sinusoidal(day,0.4_rk),ice_water_index-1,i)
-      else if (state_vars(i)%name.eq._NO3_) then
-        call do_relaxation(sinusoidal(day,3._rk),ice_water_index-1,i)
-      else if (state_vars(i)%name.eq._Si_) then
-        call do_relaxation(sinusoidal(day,10.0_rk),ice_water_index-1,i)
-      else if (state_vars(i)%name.eq._O2_) then
-        call do_relaxation(sinusoidal(day,330.0_rk),ice_water_index-1,i)
-      else if (state_vars(i)%name.eq._PON_) then
-        call do_relaxation(sinusoidal(day,12.5_rk),ice_water_index-1,i)
-      !else if (state_vars(i)%name.eq."B_CH4_CH4") then
-      !  call do_relaxation(10._rk,bbl_sed_index,i)
-      !  call do_relaxation(10._rk,bbl_sed_index+1,i)
-      !  call do_relaxation(10._rk,bbl_sed_index+2,i)
-      !  call do_relaxation(10._rk,bbl_sed_index+3,i)
-      !  call do_relaxation(10._rk,bbl_sed_index+4,i)
+      if (state_vars(i)%name.eq.po4) then
+        call read_from_nc(po4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk_po4,-1._rk)
+        d_alk = d_alk+d_alk_po4
+      else if (state_vars(i)%name.eq.nh4) then
+        call read_from_nc(nh4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk_nh4,+1._rk)
+        d_alk = d_alk+d_alk_nh4
+      else if (state_vars(i)%name.eq.no3) then
+        call read_from_nc(no3rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk_no3,-1._rk)
+        d_alk = d_alk+d_alk_no3
+      else if (state_vars(i)%name.eq.so4) then
+        call read_from_nc(so4rel,i,rp,water_bbl_index,ice_water_index,id,0,d_alk_so4,-2._rk)
+        d_alk = d_alk+d_alk_so4
+      else if (state_vars(i)%name.eq.si) then
+        call read_from_nc(sirel,i,rp,water_bbl_index,ice_water_index,id,0)
+      else if (state_vars(i)%name.eq.o2) then
+        call read_from_nc(o2rel,i,rp,water_bbl_index,ice_water_index,id,0)
+      else if (state_vars(i)%name.eq.dic) then
+        call read_from_nc(dicrel,i,rp,water_bbl_index,ice_water_index,id,0)
+      else if (state_vars(i)%name.eq.ch4) then
+        call read_from_nc(ch4flux,i,rp,water_bbl_index,ice_water_index,id,1)
+        call read_from_nc(ch4rel ,i,rp,water_bbl_index,ice_water_index,id,0)
+      else if (state_vars(i)%name.eq.dom) then
+        call read_from_nc(domflux,i,rp,water_bbl_index,ice_water_index,id,1)
+      else if (state_vars(i)%name.eq.doc) then
+        call read_from_nc(docflux,i,rp,water_bbl_index,ice_water_index,id,1)
+      else if (state_vars(i)%name.eq.pom) then
+        call read_from_nc(pomflux,i,rp,water_bbl_index,ice_water_index,id,1)
+      else if (state_vars(i)%name.eq.poc) then
+        call read_from_nc(pocflux,i,rp,water_bbl_index,ice_water_index,id,1)
+      !save an id to calculate alkalinity after the all elements
+      else if (state_vars(i)%name.eq.alk) then
+        id_alk = i
       end if
     end do
+    !change alkalinity due to the saved increments of NO3-, PO4-, SO4=, and etc.
+    !it should go the last after calculation of the all compounds
+    call do_relaxation(water_bbl_index,ice_water_index-1,id_alk,d_alk)
   contains
-    pure function sinusoidal(day,multiplier)
-      integer, intent(in):: day
+    pure function sinusoidal(id,multiplier)
+      integer, intent(in):: id
       real(rk),intent(in):: multiplier
       real(rk) sinusoidal
 
       sinusoidal =  multiplier/2 + 0.5_rk*&
                     (1._rk+sin(2._rk*_PI_*(&
-                    day-130._rk)/365._rk))*multiplier/2
+                    id-60._rk)/365._rk))*multiplier/2
     end function sinusoidal
-  end subroutine
+    !
+    !
+    !
+    subroutine read_from_nc(name,i,rp,&
+                            water_bbl_index,ice_water_index,id,&
+                            isflux,d_alk,k_alk)
+      character(len=64),intent(in):: name
+      integer ,intent(in):: i
+      real(rk),intent(in):: rp
+      integer ,intent(in):: ice_water_index,water_bbl_index
+      integer ,intent(in):: id
+      integer ,intent(in):: isflux ! 1 is yes
+      real(rk),optional,dimension(water_bbl_index:ice_water_index-1)&
+              ,intent(inout):: d_alk
+      !TA coef or ion charge # for NO3- it is -1, for SO4= it is -2
+      real(rk),optional,intent(in):: k_alk
+
+      class(variable),allocatable:: relaxation_variable
+
+      if (name(1:4) == "none") then
+        return
+      else
+        call relaxation_list%get_var(name,relaxation_variable)
+        select type(relaxation_variable)
+        class is(variable_2d)
+          if (isflux == 1) then
+            call do_flux(water_bbl_index,ice_water_index-1,i,&
+                               relaxation_variable%value(:,id))
+          else
+            !this is for elements which can contribute to TA
+            if (present(d_alk).and.present(k_alk)) then
+              call do_relaxation(water_bbl_index,ice_water_index-1,i,&
+                                 relaxation_variable%value(:,id),rp,d_alk,k_alk)
+            !here we calculate relaxation for elements not in TA
+            else
+              call do_relaxation(water_bbl_index,ice_water_index-1,i,&
+                                 relaxation_variable%value(:,id),rp)
+            end if
+          end if
+        end select
+        deallocate(relaxation_variable)
+      end if
+    end subroutine read_from_nc
+    !
+    !indexes from bottom upwards
+    !
+    subroutine do_flux(from,till,i,value)
+      integer ,intent(in):: from
+      integer ,intent(in):: till
+      integer, intent(in):: i
+      real(rk),dimension(from:till),intent(in):: value
+
+      state_vars(i)%value(from:till) = state_vars(i)%value(from:till)&
+                                     + value*seconds_per_circle
+    end subroutine do_flux
+  end subroutine relaxation
   !
+  !currently unused
   !
-  !
-  subroutine do_relaxation_single(value,index,i)
+  subroutine do_relaxation_single(value,index,i,rp)
     real(rk),intent(in):: value
     integer ,intent(in):: index
     integer, intent(in):: i
+    real(rk),intent(in):: rp
 
     real(rk) dcc
 
     dcc = value-state_vars(i)%value(index)
-    state_vars(i)%value(index) = state_vars(i)%value(index)+dcc
-
+    state_vars(i)%value(index) = state_vars(i)%value(index)+dcc*rp
   end subroutine do_relaxation_single
   !
-  !indexes from bottom upwards
+  !for variables not in conservative TA
   !
-  subroutine do_relaxation_array(from,till,i,value)
+  subroutine do_relaxation_array(from,till,i,value,rp)
     integer ,intent(in):: from
     integer ,intent(in):: till
     integer, intent(in):: i
     real(rk),dimension(from:till),intent(in):: value
+    real(rk),intent(in):: rp
 
     integer j
     real(rk) dcc
 
     do j = from,till
-      dcc = value(j)-state_vars(i)%value(j)
+      dcc = (value(j)-state_vars(i)%value(j))*rp
       state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
     end do
   end subroutine do_relaxation_array
+  !
+  !for variables in conservative TA
+  !
+  subroutine do_relaxation_array_with_alk(from,till,i,value,rp,d_alk,k_alk)
+    integer ,intent(in):: from
+    integer ,intent(in):: till
+    integer, intent(in):: i
+    real(rk),dimension(from:till),intent(in):: value
+    real(rk),intent(in):: rp
+    real(rk),dimension(from:till),intent(inout):: d_alk
+    real(rk),intent(in):: k_alk !ion charge
+
+    integer j
+    real(rk) dcc
+
+    do j = from,till
+      dcc = (value(j)-state_vars(i)%value(j))*rp
+      d_alk(j) = dcc*k_alk
+      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
+    end do
+  end subroutine do_relaxation_array_with_alk
+  !
+  !for TA update - according to the compounds elements
+  !
+  subroutine do_relaxation_array_alk(from,till,i,d_alk)
+    integer ,intent(in):: from
+    integer ,intent(in):: till
+    integer, intent(in):: i
+    real(rk),dimension(from:till),intent(in):: d_alk
+
+    integer j
+
+    do j = from,till
+      state_vars(i)%value(j) = state_vars(i)%value(j)+d_alk(j)
+    end do
+  end subroutine do_relaxation_array_alk
   !
   !returns type spbm_state_variable by name
   !
@@ -1763,7 +1977,7 @@ contains
     end do
     call fatal_error("Search state variable",&
                      "No such variable")
-  end function
+  end function find_state_variable
   !
   !returns index of variable
   !
@@ -1781,7 +1995,7 @@ contains
       end if
     end do
     find_index_of_state_variable = -1
-  end function
+  end function find_index_of_state_variable
   !
   !checking for negative and NaNs
   !
@@ -1820,4 +2034,4 @@ program main
 
   call initialize_spbm()
   call sarafan()
-end program
+end program main
