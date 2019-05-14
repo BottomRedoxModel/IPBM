@@ -10,7 +10,7 @@ Coupled simulation of ice, water column, and sediment biogeochemistry.
 This manual is referred to the SPBM v0.2.
 At first you must have compliant compiler, [Git], [CMake], and [NetCDF] Fortran library compiled with the same Fortran compiler as used for compiling SPBM.
 For the VisualStudio solution under Windows pre-compiled NetCDF libraries are provided.
-In case of you do not use any biogeochemical model you do not need to specify a corresponding envoronment variable.
+In case of you do not use any biogeochemical model you do not need to specify a corresponding environment variable.
 
 Then:
 
