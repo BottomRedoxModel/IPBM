@@ -39,6 +39,7 @@ module transport
   integer number_of_parameters
   integer number_of_layers
   integer seconds_per_circle
+  real(rk) dx
   integer ,allocatable,dimension(:):: ice_algae_ids
   real(rk),allocatable,dimension(:):: depth
   real(rk),allocatable,dimension(:):: porosity
@@ -114,6 +115,7 @@ contains
 
     call read_spbm_configuration()
     seconds_per_circle = int(_SECONDS_PER_CIRCLE_)
+    dx = (_DX_)
 
     !initializing fabm from fabm.yaml file
     _LINE_
@@ -1895,6 +1897,7 @@ contains
   !currently unused
   !
   subroutine do_relaxation_single(value,index,i,rp)
+    !here rp is coef. of diffusivity [m s^-2]
     real(rk),intent(in):: value
     integer ,intent(in):: index
     integer, intent(in):: i
@@ -1902,13 +1905,14 @@ contains
 
     real(rk) dcc
 
-    dcc = value-state_vars(i)%value(index)
-    state_vars(i)%value(index) = state_vars(i)%value(index)+dcc*rp
+    dcc = rp*2._rk*(value-state_vars(i)%value(index))/dx/dx
+    state_vars(i)%value(index) = state_vars(i)%value(index)+dcc*seconds_per_circle
   end subroutine do_relaxation_single
   !
   !for variables not in conservative TA
   !
   subroutine do_relaxation_array(from,till,i,value,rp)
+    !here rp is coef. of diffusivity [m s^-2]
     integer ,intent(in):: from
     integer ,intent(in):: till
     integer, intent(in):: i
@@ -1919,14 +1923,15 @@ contains
     real(rk) dcc
 
     do j = from,till
-      dcc = (value(j)-state_vars(i)%value(j))*rp
-      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
+      dcc = (value(j)-state_vars(i)%value(j))*rp*2._rk/dx/dx
+      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc*seconds_per_circle
     end do
   end subroutine do_relaxation_array
   !
   !for variables in conservative TA
   !
   subroutine do_relaxation_array_with_alk(from,till,i,value,rp,d_alk,k_alk)
+    !here rp is coef. of diffusivity [m s^-2]
     integer ,intent(in):: from
     integer ,intent(in):: till
     integer, intent(in):: i
@@ -1939,9 +1944,9 @@ contains
     real(rk) dcc
 
     do j = from,till
-      dcc = (value(j)-state_vars(i)%value(j))*rp
+      dcc = (value(j)-state_vars(i)%value(j))*rp*2._rk/dx/dx
       d_alk(j) = dcc*k_alk
-      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
+      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc*seconds_per_circle
     end do
   end subroutine do_relaxation_array_with_alk
   !
