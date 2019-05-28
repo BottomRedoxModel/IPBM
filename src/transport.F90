@@ -1944,9 +1944,10 @@ contains
     real(rk) dcc
 
     do j = from,till
-      dcc = (value(j)-state_vars(i)%value(j))*rp*2._rk/dx/dx
+      dcc = (value(j)-state_vars(i)%value(j))*rp*2._rk/dx/dx*seconds_per_circle
+
       d_alk(j) = dcc*k_alk
-      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc*seconds_per_circle
+      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
     end do
   end subroutine do_relaxation_array_with_alk
   !
