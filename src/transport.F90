@@ -1326,6 +1326,7 @@ contains
   contains
     pure function calculate_fick(surface_index,bbl_sed_index,&
                                  c,dz,kz,pF1,pF2,pFSWIup,pFSWIdw,surface_flux)
+      !fick is positive upwards - even for the surface layer
       integer                               ,intent(in):: surface_index
       integer                               ,intent(in):: bbl_sed_index
       !concentrations in layers
@@ -1363,7 +1364,7 @@ contains
         calculate_fick(i) = -1._rk*kz(i)*(c(i)-c(i-1))/dz(i-1)
       end do
       !surface
-      calculate_fick(surface_index) = surface_flux
+      calculate_fick(surface_index) = -surface_flux
     end function calculate_fick
   end subroutine spbm_do_diffusion
   !
