@@ -6,7 +6,7 @@
 #define _NEUMANN_   1
 
 #define _WIND_SPEED_				5._rk
-#define _AIR_CO2_					380._rk
+#define _AIR_CO2_					390._rk ! CO2 fraction, micro mol/mol = micro atm
 
 !light parameters:
 #define _ICE_ALBEDO_       0.744_rk
