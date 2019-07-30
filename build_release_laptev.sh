@@ -3,7 +3,7 @@
 mkdir -p build
 rm -r build/*
 CWD=`pwd`
-cp ../SPBM_data/laptev-2/* build &&
+cp ../data_spbm_laptev/baseline-B/* build &&
 cd build && cmake $CWD/src -DFABM_BASE=$FABMDIR \
                            -DFABM_ERSEM_BASE=$ERSEMDIR \
                            -DFABM_NIVA_BASE=$BROMDIR \
