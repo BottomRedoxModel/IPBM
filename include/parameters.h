@@ -39,4 +39,4 @@
 !and bioirrigation [uM] (default = 5.0 uM)
 #define _KO2_                                      5._rk
 !horizontal scale (for relaxation) [m]
-#define _DX_                                       100._rk
+#define _DX_                                       50._rk
