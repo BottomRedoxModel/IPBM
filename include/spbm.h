@@ -90,6 +90,8 @@
 
 #define _RELAXATION_FILE_NAME_      get_spbm_string_parameter('relaxation_file_name')
 #define _RELAXATION_PARAMETER_      get_spbm_real_parameter('relaxation_parameter')
+#define _DX_ get_spbm_real_parameter('dx')
+
 #define _DIC_rel_                   get_spbm_string_parameter('DICrel')
 #define _PO4_rel_                   get_spbm_string_parameter('PO4rel')
 #define _NH4_rel_                   get_spbm_string_parameter('NH4rel')
