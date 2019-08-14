@@ -106,4 +106,5 @@
 #define _DOC_flux_                  get_spbm_string_parameter('DOCflux')
 #define _POM_flux_                  get_spbm_string_parameter('POMflux')
 #define _POC_flux_                  get_spbm_string_parameter('POCflux')
-
+#define _DIC_flux_                  get_spbm_string_parameter('DICflux')
+#define _Alk_flux_                  get_spbm_string_parameter('Alkflux')
