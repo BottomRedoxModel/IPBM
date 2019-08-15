@@ -93,6 +93,7 @@
 #define _DX_ get_spbm_real_parameter('dx')
 
 #define _DIC_rel_                   get_spbm_string_parameter('DICrel')
+#define _Alk_rel_                   get_spbm_string_parameter('Alkrel')
 #define _PO4_rel_                   get_spbm_string_parameter('PO4rel')
 #define _NH4_rel_                   get_spbm_string_parameter('NH4rel')
 #define _NO3_rel_                   get_spbm_string_parameter('NO3rel')
