@@ -1004,7 +1004,7 @@ contains
     real(rk):: ice_algae_velocity
     !relaxation names and relaxation multiplier parameter
     real(rk):: rp
-    character(len=64):: alk,alkflux,dic,dicrel,dicflux
+    character(len=64):: alk,alkflux,alkrel,dic,dicrel,dicflux
     character(len=64):: po4,po4rel,nh4,nh4rel,no3,no3rel
     character(len=64):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
     character(len=64):: so4,so4rel
@@ -1069,7 +1069,7 @@ contains
     ice_algae_velocity = _IALGAE_VELOCITY_
     ! for relaxation
     rp = _RELAXATION_PARAMETER_
-    alk = _Alk_; alkflux = _Alk_flux_
+    alk = _Alk_; alkflux = _Alk_flux_; alkrel = _Alk_rel_
     dic = _DIC_; dicrel = _DIC_rel_; dicflux = _DIC_flux_
     po4 = _PO4_; po4rel = _PO4_rel_;
     nh4 = _NH4_; nh4rel = _NH4_rel_; no3 = _NO3_; no3rel = _NO3_rel_
@@ -1101,7 +1101,8 @@ contains
       if (is_relax==1) then
         !it applies only on the water column layers except bbl
         call relaxation(ice_water_index,water_bbl_index,id,&
-                        alk,alkflux,dic,dicrel,dicflux,po4,po4rel,nh4,nh4rel,no3,no3rel,&
+                        alk,alkflux,alkrel,dic,dicrel,dicflux,&
+                        po4,po4rel,nh4,nh4rel,no3,no3rel,&
                         so4,so4rel,si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
                         dom,doc,pom,poc,&
                         domflux,docflux,pomflux,pocflux,rp,&
@@ -1764,7 +1765,8 @@ contains
   !
   !
   subroutine relaxation(ice_water_index,water_bbl_index,id,&
-                        alk,alkflux,dic,dicrel,dicflux,po4,po4rel,nh4,nh4rel,no3,no3rel,&
+                        alk,alkflux,alkrel,dic,dicrel,dicflux,&
+                        po4,po4rel,nh4,nh4rel,no3,no3rel,&
                         so4,so4rel,si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
                         dom,doc,pom,poc,&
                         domflux,docflux,pomflux,pocflux,rp,&
@@ -1772,7 +1774,8 @@ contains
     integer,intent(in):: ice_water_index,water_bbl_index
     integer,intent(in):: id
 
-    character(len=64),intent(in):: alk,alkflux,dic,dicrel,dicflux
+    character(len=64),intent(in):: alk,alkflux,alkrel
+    character(len=64),intent(in):: dic,dicrel,dicflux
     character(len=64),intent(in):: po4,po4rel,nh4,nh4rel,no3,no3rel
     character(len=64),intent(in):: so4,so4rel
     character(len=64),intent(in):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
@@ -1825,6 +1828,7 @@ contains
       !save an id to calculate alkalinity after the all elements
       else if (state_vars(i)%name.eq.alk) then
         call read_from_nc(alkflux,i,rp,water_bbl_index,ice_water_index,id,1)
+        call read_from_nc(alkrel ,i,rp,water_bbl_index,ice_water_index,id,0)
         id_alk = i
       end if
     end do
