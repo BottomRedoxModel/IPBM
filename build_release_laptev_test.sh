@@ -1,14 +1,9 @@
 #!/bin/bash
 
-#mkdir -p build
-#rm -r build/*
- 
 make_build () {
 path=$1
 srcpath=$HOME/SPBM/src
 cd $path
-#cp ../data_spbm_laptev/baseline-B/* build &&
-#cd build &&
 cmake $srcpath -DFABM_BASE=$FABMDIR \
                -DFABM_ERSEM_BASE=$ERSEMDIR \
                -DFABM_NIVA_BASE=$BROMDIR \
@@ -17,8 +12,13 @@ cmake $srcpath -DFABM_BASE=$FABMDIR \
 make
 		   }
 
+#change scenarios according to you case
 scenarios="baseline-B baseline-O"
+
+# change directory according to your case 
+dir='/data_spbm_laptev/'
+
 for scen in $scenarios
     do 	
-        make_build $HOME'/data_spbm_laptev/'$scen
+        make_build $HOME$dir$scen
     done
