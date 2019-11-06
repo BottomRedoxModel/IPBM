@@ -358,8 +358,6 @@ contains
         is_solid = .true.,density = 1.5E7_rk)
       call find_set_state_variable(_POM_,&
         is_solid = .true.,density = 1.5E7_rk)
-      call find_set_state_variable(_POC_,&
-        is_solid = .true.,density = 1.5E7_rk)
       !small-size POM
       call find_set_state_variable(trim(_SmallPOM_) // "_c",&
         is_solid = .true.,density = 1.5E7_rk*106._rk/16._rk)
@@ -1008,8 +1006,8 @@ contains
     character(len=64):: po4,po4rel,nh4,nh4rel,no3,no3rel
     character(len=64):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
     character(len=64):: so4,so4rel
-    character(len=64):: dom,doc,pom,poc
-    character(len=64):: domflux,docflux,pomflux,pocflux
+    character(len=64):: dom,pom
+    character(len=64):: domflux,pomflux
 
     bbl_sed_index   = standard_vars%get_value("bbl_sediments_index")
     ice_water_index = standard_vars%get_value("ice_water_index")
@@ -1076,9 +1074,9 @@ contains
     so4 = _SO4_; so4rel = _SO4_rel_
     si  =  _Si_; sirel  =  _Si_rel_; o2  =  _O2_;  o2rel =  _O2_rel_
     ch4 = _CH4_; ch4rel = _CH4_rel_; ch4flux = _CH4_flux_
-    dom = _DOM_; doc = _DOC_; pom = _POM_; poc = _POC_
-    domflux = _DOM_flux_; docflux = _DOC_flux_
-    pomflux = _POM_flux_; pocflux = _POC_flux_
+    dom = _DOM_; pom = _POM_;
+    domflux = _DOM_flux_;
+    pomflux = _POM_flux_;
 
     !alkalinity changes due to some nutrients advection
     allocate(d_alk_po4(water_bbl_index:ice_water_index-1))
@@ -1104,8 +1102,8 @@ contains
                         alk,alkflux,alkrel,dic,dicrel,dicflux,&
                         po4,po4rel,nh4,nh4rel,no3,no3rel,&
                         so4,so4rel,si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
-                        dom,doc,pom,poc,&
-                        domflux,docflux,pomflux,pocflux,rp,&
+                        dom,pom,&
+                        domflux,pomflux,rp,&
                         d_alk_po4i,d_alk_nh4i,d_alk_no3i,d_alk_so4i)
         d_alk_po4 = d_alk_po4 + d_alk_po4i
         d_alk_nh4 = d_alk_nh4 + d_alk_nh4i
@@ -1768,8 +1766,8 @@ contains
                         alk,alkflux,alkrel,dic,dicrel,dicflux,&
                         po4,po4rel,nh4,nh4rel,no3,no3rel,&
                         so4,so4rel,si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
-                        dom,doc,pom,poc,&
-                        domflux,docflux,pomflux,pocflux,rp,&
+                        dom,pom,&
+                        domflux,pomflux,rp,&
                         d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
     integer,intent(in):: ice_water_index,water_bbl_index
     integer,intent(in):: id
@@ -1779,8 +1777,8 @@ contains
     character(len=64),intent(in):: po4,po4rel,nh4,nh4rel,no3,no3rel
     character(len=64),intent(in):: so4,so4rel
     character(len=64),intent(in):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
-    character(len=64),intent(in):: dom,doc,pom,poc
-    character(len=64),intent(in):: domflux,docflux,pomflux,pocflux
+    character(len=64),intent(in):: dom,pom
+    character(len=64),intent(in):: domflux,pomflux
     real(rk)        ,intent(in):: rp
     real(rk),dimension(water_bbl_index:ice_water_index-1),intent(out):: &
              d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
@@ -1819,12 +1817,8 @@ contains
         call read_from_nc(ch4rel ,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.dom) then
         call read_from_nc(domflux,i,rp,water_bbl_index,ice_water_index,id,1)
-      else if (state_vars(i)%name.eq.doc) then
-        call read_from_nc(docflux,i,rp,water_bbl_index,ice_water_index,id,1)
       else if (state_vars(i)%name.eq.pom) then
         call read_from_nc(pomflux,i,rp,water_bbl_index,ice_water_index,id,1)
-      else if (state_vars(i)%name.eq.poc) then
-        call read_from_nc(pocflux,i,rp,water_bbl_index,ice_water_index,id,1)
       !save an id to calculate alkalinity after the all elements
       else if (state_vars(i)%name.eq.alk) then
         call read_from_nc(alkflux,i,rp,water_bbl_index,ice_water_index,id,1)
