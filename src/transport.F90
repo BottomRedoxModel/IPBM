@@ -979,6 +979,7 @@ contains
     real(rk),dimension(number_of_layers+1):: kz_mol
     real(rk),dimension(number_of_layers+1):: kz_bio
     real(rk),dimension(number_of_layers+1):: kz_turb
+    !real(rk),dimension(number_of_layers+1):: kz_turb_no_disp
     real(rk),dimension(number_of_layers+1):: kz_ice_gravity
     real(rk),dimension(number_of_layers+1):: layer_thicknesses
     real(rk),dimension(number_of_layers)  :: porosity
@@ -1031,6 +1032,8 @@ contains
     kz_mol = standard_vars%get_column("molecular_diffusivity",id)
     kz_bio = standard_vars%get_column("bioturbation_diffusivity",id)
     kz_turb = standard_vars%get_column(_TURBULENCE_,id)
+    !kz_turb_no_disp = standard_vars%get_column(_TURBULENCE_,id)
+    !kz_turb_no_disp(:bbl_sed_index)=1.e-9_rk
     kz_ice_gravity = standard_vars%get_column("ice_gravity_drainage",id)
     !first zero for gotm diff solver
     layer_thicknesses = &
@@ -1126,9 +1129,20 @@ contains
       !diffusion
       fick = 0._rk
       call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
-                             pF1_solutes,pF2_solutes,pF1_solids,&
-                             pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
-                             layer_thicknesses,dz,brine_release,fick)
+                           pF1_solutes,pF2_solutes,pF1_solids,&
+                           pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
+                           layer_thicknesses,dz,brine_release,fick)
+      !if (i<number_of_circles/2) then
+      !  call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
+      !                       pF1_solutes,pF2_solutes,pF1_solids,&
+      !                       pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
+      !                       layer_thicknesses,dz,brine_release,fick)
+      !else
+      !  call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
+      !                       pF1_solutes,pF2_solutes,pF1_solids,&
+      !                       pF2_solids,kz_mol,kz_bio,kz_turb_no_disp,kz_ice_gravity,&
+      !                       layer_thicknesses,dz,brine_release,fick)
+      !end if
       call check_array("after_diffusion",surface_index,id,i)
       do j = 1,number_of_parameters
         state_vars(j)%fickian_fluxes = state_vars(j)%fickian_fluxes(:)&
