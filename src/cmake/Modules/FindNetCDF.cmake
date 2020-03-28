@@ -10,13 +10,13 @@ if(NetCDF_CONFIG_EXECUTABLE)
 
 # Found nf-config - use it to retrieve include directory and linking flags.
 # Mark NetCDF paths as advanced configuration options in CMake (hidden by default).
-execute_process(COMMAND ${NetCDF_CONFIG_EXECUTABLE} --includedir
-                OUTPUT_VARIABLE includedir
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
+#execute_process(COMMAND ${NetCDF_CONFIG_EXECUTABLE} --includedir
+#                OUTPUT_VARIABLE includedir
+#                OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND ${NetCDF_CONFIG_EXECUTABLE} --flibs
                 OUTPUT_VARIABLE flibs
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-set(NetCDF_INCLUDE_DIRS ${includedir} CACHE STRING "NetCDF include directories")
+set(NetCDF_INCLUDE_DIRS $ENV{NetCDF_modules} CACHE STRING "NetCDF include directories")
 set(NetCDF_LIBRARIES ${flibs} CACHE STRING "NetCDF linking flags")
 mark_as_advanced(NetCDF_INCLUDE_DIRS NetCDF_LIBRARIES)
 
