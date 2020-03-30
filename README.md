@@ -55,7 +55,7 @@ Then:
 
   download [ERSEM] from the official cite.
 
-2. Add FABMDIR, ERSEMDIR, BROMDIR, and NetCDF_ROOT environment variables.
+2. Add FABMDIR, ERSEMDIR, BROMDIR, NetCDF_ROOT, NetCDF_modules environment variables.
 
   For example you can add to `~/.bashrc` current lines:
 
@@ -64,9 +64,13 @@ Then:
   export ERSEMDIR='/path/to/ersem'
   export BROMDIR='/path/to/brom_niva_module'
   export NetCDF_ROOT='/path/to/NetCDF/bin'
+  export NetCDF_modules='/path/to/NetCDF/modules'
   ```
 
-  In case of installing NetCDF libraries into the standard directory it is not
+  NetCDF_ROOT should point to the nf-config location.
+  NetCDF_modules should point to netcdf module `*.mod` files location.  
+  For some OS these variables point to the similar location.
+  Somtimes, in case of installing NetCDF libraries into the standard directory it is not
   necessary to specify their location.
   Reload .bashrc `$ source ~/.bashrc`
 
