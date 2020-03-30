@@ -60,7 +60,6 @@
 #define _CH4_                       get_spbm_string_parameter('CH4')
 
 #define _DOM_                       get_spbm_string_parameter('DOM')
-#define _DOC_                       get_spbm_string_parameter('DOC')
 
 #define _CaCO3_                     get_spbm_string_parameter('CaCO3')
 #define _S0_                        get_spbm_string_parameter('S0')
@@ -75,7 +74,6 @@
 #define _Phy_                       get_spbm_string_parameter('Phy')
 #define _Het_                       get_spbm_string_parameter('Het')
 #define _POM_                       get_spbm_string_parameter('POM')
-#define _POC_                       get_spbm_string_parameter('POC')
 #define _SmallPOM_                  get_spbm_string_parameter('SmallPOM')
 #define _MediumPOM_                 get_spbm_string_parameter('MediumPOM')
 #define _LargePOM_                  get_spbm_string_parameter('LargePOM')
@@ -90,7 +88,10 @@
 
 #define _RELAXATION_FILE_NAME_      get_spbm_string_parameter('relaxation_file_name')
 #define _RELAXATION_PARAMETER_      get_spbm_real_parameter('relaxation_parameter')
+#define _DX_ get_spbm_real_parameter('dx')
+
 #define _DIC_rel_                   get_spbm_string_parameter('DICrel')
+#define _Alk_rel_                   get_spbm_string_parameter('Alkrel')
 #define _PO4_rel_                   get_spbm_string_parameter('PO4rel')
 #define _NH4_rel_                   get_spbm_string_parameter('NH4rel')
 #define _NO3_rel_                   get_spbm_string_parameter('NO3rel')
@@ -101,7 +102,6 @@
 
 #define _CH4_flux_                  get_spbm_string_parameter('CH4flux')
 #define _DOM_flux_                  get_spbm_string_parameter('DOMflux')
-#define _DOC_flux_                  get_spbm_string_parameter('DOCflux')
 #define _POM_flux_                  get_spbm_string_parameter('POMflux')
-#define _POC_flux_                  get_spbm_string_parameter('POCflux')
-
+#define _DIC_flux_                  get_spbm_string_parameter('DICflux')
+#define _Alk_flux_                  get_spbm_string_parameter('Alkflux')

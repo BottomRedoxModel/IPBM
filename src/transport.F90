@@ -39,6 +39,7 @@ module transport
   integer number_of_parameters
   integer number_of_layers
   integer seconds_per_circle
+  real(rk) dx
   integer ,allocatable,dimension(:):: ice_algae_ids
   real(rk),allocatable,dimension(:):: depth
   real(rk),allocatable,dimension(:):: porosity
@@ -114,6 +115,7 @@ contains
 
     call read_spbm_configuration()
     seconds_per_circle = int(_SECONDS_PER_CIRCLE_)
+    dx = (_DX_)
 
     !initializing fabm from fabm.yaml file
     _LINE_
@@ -355,8 +357,6 @@ contains
       call find_set_state_variable(_Het_,&
         is_solid = .true.,density = 1.5E7_rk)
       call find_set_state_variable(_POM_,&
-        is_solid = .true.,density = 1.5E7_rk)
-      call find_set_state_variable(_POC_,&
         is_solid = .true.,density = 1.5E7_rk)
       !small-size POM
       call find_set_state_variable(trim(_SmallPOM_) // "_c",&
@@ -979,6 +979,7 @@ contains
     real(rk),dimension(number_of_layers+1):: kz_mol
     real(rk),dimension(number_of_layers+1):: kz_bio
     real(rk),dimension(number_of_layers+1):: kz_turb
+    !real(rk),dimension(number_of_layers+1):: kz_turb_no_disp
     real(rk),dimension(number_of_layers+1):: kz_ice_gravity
     real(rk),dimension(number_of_layers+1):: layer_thicknesses
     real(rk),dimension(number_of_layers)  :: porosity
@@ -1002,12 +1003,12 @@ contains
     real(rk):: ice_algae_velocity
     !relaxation names and relaxation multiplier parameter
     real(rk):: rp
-    character(len=64):: alk,dic,dicrel
+    character(len=64):: alk,alkflux,alkrel,dic,dicrel,dicflux
     character(len=64):: po4,po4rel,nh4,nh4rel,no3,no3rel
     character(len=64):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
     character(len=64):: so4,so4rel
-    character(len=64):: dom,doc,pom,poc
-    character(len=64):: domflux,docflux,pomflux,pocflux
+    character(len=64):: dom,pom
+    character(len=64):: domflux,pomflux
 
     bbl_sed_index   = standard_vars%get_value("bbl_sediments_index")
     ice_water_index = standard_vars%get_value("ice_water_index")
@@ -1031,6 +1032,8 @@ contains
     kz_mol = standard_vars%get_column("molecular_diffusivity",id)
     kz_bio = standard_vars%get_column("bioturbation_diffusivity",id)
     kz_turb = standard_vars%get_column(_TURBULENCE_,id)
+    !kz_turb_no_disp = standard_vars%get_column(_TURBULENCE_,id)
+    !kz_turb_no_disp(:bbl_sed_index)=1.e-9_rk
     kz_ice_gravity = standard_vars%get_column("ice_gravity_drainage",id)
     !first zero for gotm diff solver
     layer_thicknesses = &
@@ -1067,15 +1070,16 @@ contains
     ice_algae_velocity = _IALGAE_VELOCITY_
     ! for relaxation
     rp = _RELAXATION_PARAMETER_
-    alk = _Alk_; dic = _DIC_; dicrel = _DIC_rel_
+    alk = _Alk_; alkflux = _Alk_flux_; alkrel = _Alk_rel_
+    dic = _DIC_; dicrel = _DIC_rel_; dicflux = _DIC_flux_
     po4 = _PO4_; po4rel = _PO4_rel_;
     nh4 = _NH4_; nh4rel = _NH4_rel_; no3 = _NO3_; no3rel = _NO3_rel_
     so4 = _SO4_; so4rel = _SO4_rel_
     si  =  _Si_; sirel  =  _Si_rel_; o2  =  _O2_;  o2rel =  _O2_rel_
     ch4 = _CH4_; ch4rel = _CH4_rel_; ch4flux = _CH4_flux_
-    dom = _DOM_; doc = _DOC_; pom = _POM_; poc = _POC_
-    domflux = _DOM_flux_; docflux = _DOC_flux_
-    pomflux = _POM_flux_; pocflux = _POC_flux_
+    dom = _DOM_; pom = _POM_;
+    domflux = _DOM_flux_;
+    pomflux = _POM_flux_;
 
     !alkalinity changes due to some nutrients advection
     allocate(d_alk_po4(water_bbl_index:ice_water_index-1))
@@ -1098,10 +1102,11 @@ contains
       if (is_relax==1) then
         !it applies only on the water column layers except bbl
         call relaxation(ice_water_index,water_bbl_index,id,&
-                        alk,dic,dicrel,po4,po4rel,nh4,nh4rel,no3,no3rel,&
+                        alk,alkflux,alkrel,dic,dicrel,dicflux,&
+                        po4,po4rel,nh4,nh4rel,no3,no3rel,&
                         so4,so4rel,si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
-                        dom,doc,pom,poc,&
-                        domflux,docflux,pomflux,pocflux,rp,&
+                        dom,pom,&
+                        domflux,pomflux,rp,&
                         d_alk_po4i,d_alk_nh4i,d_alk_no3i,d_alk_so4i)
         d_alk_po4 = d_alk_po4 + d_alk_po4i
         d_alk_nh4 = d_alk_nh4 + d_alk_nh4i
@@ -1124,9 +1129,20 @@ contains
       !diffusion
       fick = 0._rk
       call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
-                             pF1_solutes,pF2_solutes,pF1_solids,&
-                             pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
-                             layer_thicknesses,dz,brine_release,fick)
+                           pF1_solutes,pF2_solutes,pF1_solids,&
+                           pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
+                           layer_thicknesses,dz,brine_release,fick)
+      !if (i<number_of_circles/2) then
+      !  call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
+      !                       pF1_solutes,pF2_solutes,pF1_solids,&
+      !                       pF2_solids,kz_mol,kz_bio,kz_turb,kz_ice_gravity,&
+      !                       layer_thicknesses,dz,brine_release,fick)
+      !else
+      !  call spbm_do_diffusion(surface_index,bbl_sed_index,ice_water_index,&
+      !                       pF1_solutes,pF2_solutes,pF1_solids,&
+      !                       pF2_solids,kz_mol,kz_bio,kz_turb_no_disp,kz_ice_gravity,&
+      !                       layer_thicknesses,dz,brine_release,fick)
+      !end if
       call check_array("after_diffusion",surface_index,id,i)
       do j = 1,number_of_parameters
         state_vars(j)%fickian_fluxes = state_vars(j)%fickian_fluxes(:)&
@@ -1324,6 +1340,7 @@ contains
   contains
     pure function calculate_fick(surface_index,bbl_sed_index,&
                                  c,dz,kz,pF1,pF2,pFSWIup,pFSWIdw,surface_flux)
+      !fick is positive upwards - even for the surface layer
       integer                               ,intent(in):: surface_index
       integer                               ,intent(in):: bbl_sed_index
       !concentrations in layers
@@ -1361,7 +1378,7 @@ contains
         calculate_fick(i) = -1._rk*kz(i)*(c(i)-c(i-1))/dz(i-1)
       end do
       !surface
-      calculate_fick(surface_index) = surface_flux
+      calculate_fick(surface_index) = -surface_flux
     end function calculate_fick
   end subroutine spbm_do_diffusion
   !
@@ -1760,20 +1777,22 @@ contains
   !
   !
   subroutine relaxation(ice_water_index,water_bbl_index,id,&
-                        alk,dic,dicrel,po4,po4rel,nh4,nh4rel,no3,no3rel,&
+                        alk,alkflux,alkrel,dic,dicrel,dicflux,&
+                        po4,po4rel,nh4,nh4rel,no3,no3rel,&
                         so4,so4rel,si,sirel,o2,o2rel,ch4,ch4rel,ch4flux,&
-                        dom,doc,pom,poc,&
-                        domflux,docflux,pomflux,pocflux,rp,&
+                        dom,pom,&
+                        domflux,pomflux,rp,&
                         d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4)
     integer,intent(in):: ice_water_index,water_bbl_index
     integer,intent(in):: id
 
-    character(len=64),intent(in):: alk,dic,dicrel
+    character(len=64),intent(in):: alk,alkflux,alkrel
+    character(len=64),intent(in):: dic,dicrel,dicflux
     character(len=64),intent(in):: po4,po4rel,nh4,nh4rel,no3,no3rel
     character(len=64),intent(in):: so4,so4rel
     character(len=64),intent(in):: si,sirel,o2,o2rel,ch4,ch4rel,ch4flux
-    character(len=64),intent(in):: dom,doc,pom,poc
-    character(len=64),intent(in):: domflux,docflux,pomflux,pocflux
+    character(len=64),intent(in):: dom,pom
+    character(len=64),intent(in):: domflux,pomflux
     real(rk)        ,intent(in):: rp
     real(rk),dimension(water_bbl_index:ice_water_index-1),intent(out):: &
              d_alk_po4,d_alk_nh4,d_alk_no3,d_alk_so4
@@ -1805,20 +1824,19 @@ contains
       else if (state_vars(i)%name.eq.o2) then
         call read_from_nc(o2rel,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.dic) then
-        call read_from_nc(dicrel,i,rp,water_bbl_index,ice_water_index,id,0)
+        call read_from_nc(dicflux,i,rp,water_bbl_index,ice_water_index,id,1)
+        call read_from_nc(dicrel ,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.ch4) then
         call read_from_nc(ch4flux,i,rp,water_bbl_index,ice_water_index,id,1)
         call read_from_nc(ch4rel ,i,rp,water_bbl_index,ice_water_index,id,0)
       else if (state_vars(i)%name.eq.dom) then
         call read_from_nc(domflux,i,rp,water_bbl_index,ice_water_index,id,1)
-      else if (state_vars(i)%name.eq.doc) then
-        call read_from_nc(docflux,i,rp,water_bbl_index,ice_water_index,id,1)
       else if (state_vars(i)%name.eq.pom) then
         call read_from_nc(pomflux,i,rp,water_bbl_index,ice_water_index,id,1)
-      else if (state_vars(i)%name.eq.poc) then
-        call read_from_nc(pocflux,i,rp,water_bbl_index,ice_water_index,id,1)
       !save an id to calculate alkalinity after the all elements
       else if (state_vars(i)%name.eq.alk) then
+        call read_from_nc(alkflux,i,rp,water_bbl_index,ice_water_index,id,1)
+        call read_from_nc(alkrel ,i,rp,water_bbl_index,ice_water_index,id,0)
         id_alk = i
       end if
     end do
@@ -1895,6 +1913,7 @@ contains
   !currently unused
   !
   subroutine do_relaxation_single(value,index,i,rp)
+    !here rp is coef. of diffusivity [m s^-2]
     real(rk),intent(in):: value
     integer ,intent(in):: index
     integer, intent(in):: i
@@ -1902,13 +1921,14 @@ contains
 
     real(rk) dcc
 
-    dcc = value-state_vars(i)%value(index)
-    state_vars(i)%value(index) = state_vars(i)%value(index)+dcc*rp
+    dcc = rp*2._rk*(value-state_vars(i)%value(index))/dx/dx
+    state_vars(i)%value(index) = state_vars(i)%value(index)+dcc*seconds_per_circle
   end subroutine do_relaxation_single
   !
   !for variables not in conservative TA
   !
   subroutine do_relaxation_array(from,till,i,value,rp)
+    !here rp is coef. of diffusivity [m s^-2]
     integer ,intent(in):: from
     integer ,intent(in):: till
     integer, intent(in):: i
@@ -1919,14 +1939,15 @@ contains
     real(rk) dcc
 
     do j = from,till
-      dcc = (value(j)-state_vars(i)%value(j))*rp
-      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
+      dcc = (value(j)-state_vars(i)%value(j))*rp*2._rk/dx/dx
+      state_vars(i)%value(j) = state_vars(i)%value(j)+dcc*seconds_per_circle
     end do
   end subroutine do_relaxation_array
   !
   !for variables in conservative TA
   !
   subroutine do_relaxation_array_with_alk(from,till,i,value,rp,d_alk,k_alk)
+    !here rp is coef. of diffusivity [m s^-2]
     integer ,intent(in):: from
     integer ,intent(in):: till
     integer, intent(in):: i
@@ -1939,7 +1960,8 @@ contains
     real(rk) dcc
 
     do j = from,till
-      dcc = (value(j)-state_vars(i)%value(j))*rp
+      dcc = (value(j)-state_vars(i)%value(j))*rp*2._rk/dx/dx*seconds_per_circle
+
       d_alk(j) = dcc*k_alk
       state_vars(i)%value(j) = state_vars(i)%value(j)+dcc
     end do
